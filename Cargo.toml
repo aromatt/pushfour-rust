@@ -1,0 +1,5 @@
+[package]
+
+name = "pushfour-rust"
+version = "0.0.1"
+authors = [ "Andrew Matteson <amatteson3@gmail.com>" ]
