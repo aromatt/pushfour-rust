@@ -3,3 +3,7 @@
 name = "pushfour-rust"
 version = "0.0.1"
 authors = [ "Andrew Matteson <amatteson3@gmail.com>" ]
+
+[dependencies.minimax]
+git = "http://github.com/aromatt/rust-minimax"
+version = "0.2.0"
