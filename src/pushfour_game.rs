@@ -6,20 +6,12 @@ pub struct PushfourGame;
 
 impl Game<Board, Move, bool> for PushfourGame {
     fn get_moves(&self, root: &Board) -> Vec<Move> {
-        let mut moves = Vec::new();
-        moves
+        root.get_moves()
     }
 
     fn eval(&self, state: &Board, my_turn: bool) -> bool {
-        if true {
-            if my_turn {
-                false
-            } else {
-                true
-            }
-        } else {
-            false
-        }
+        // TODO
+        true
     }
 
     fn apply(&self, state: &Board, m: Move) -> Board {
