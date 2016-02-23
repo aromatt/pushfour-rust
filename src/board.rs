@@ -74,7 +74,6 @@ impl Board {
                                      .zip(self.rocks.iter())
                                      .enumerate() {
             let combined = x | y | z;
-            println!("{:?}", combined);
             if let Some(zeros) = Self::leading_zeros(combined) {
                 let col = 63 - zeros;
                 if col < self.size {
@@ -202,10 +201,8 @@ fn test_get_moves_basic_3() {
     b.set(2, 2, Some(Player::Blue)); // 0 0 B
     let expected = vec![
         Move { row: 0, col: 1, player: Player::Blue },
-        Move { row: 0, col: 2, player: Player::Blue },
-        Move { row: 1, col: 0, player: Player::Blue },
         Move { row: 1, col: 2, player: Player::Blue },
-        Move { row: 2, col: 0, player: Player::Blue },
+        Move { row: 1, col: 0, player: Player::Blue },
         Move { row: 2, col: 1, player: Player::Blue },
     ];
     assert_eq!(expected, b.get_moves());
