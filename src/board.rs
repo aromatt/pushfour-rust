@@ -41,7 +41,7 @@ pub enum Player {
     Blue
 }
 
-impl fmt::Display for Player {
+impl Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "player {:?}", self)
     }
@@ -60,6 +60,14 @@ impl fmt::Display for Move {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Coord(usize, usize);
+
+fn rotate_cw(size: usize, row: usize, col: usize) -> (usize, usize) {
+    println!("rotate {} {} {}", size, row, col);
+    (col, size - row - 1)
+}
+
 #[derive(Clone)]
 pub struct Board {
     size: usize,
@@ -69,16 +77,26 @@ pub struct Board {
     reds: Vec<u64>,
     rocks: Vec<u64>,
 
-    blues_r: Vec<u64>,
-    reds_r: Vec<u64>,
-    rocks_r: Vec<u64>,
+    blues_invert: Vec<u64>,
+    reds_invert: Vec<u64>,
+    rocks_invert: Vec<u64>,
+
+    pub diag_lookup: Vec<Vec<Coord>>,
+    blues_diag: Vec<u64>,
+    reds_diag: Vec<u64>,
+    rocks_diag: Vec<u64>,
+
+    pub diag_lookup_rot: Vec<Vec<Coord>>,
+    blues_diag_rot: Vec<u64>,
+    reds_diag_rot: Vec<u64>,
+    rocks_diag_rot: Vec<u64>,
 }
 
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut grid = String::new();
         grid.push_str("\n");
-        for (row, ((&blue, &red), &rock)) in self.blues.iter()
+        for (_, ((&blue, &red), &rock)) in self.blues.iter()
                                      .zip(self.reds.iter())
                                      .zip(self.rocks.iter())
                                      .enumerate() {
@@ -86,11 +104,11 @@ impl fmt::Debug for Board {
             while col < self.size {
                 let mut val = '-';
                 let mask = 1 << col;
-                if (blue & mask > 0) {
+                if blue & mask > 0 {
                     val = 'b';
-                } else if (red & mask > 0) {
+                } else if red & mask > 0 {
                     val = 'r';
-                } else if (rock & mask > 0) {
+                } else if rock & mask > 0 {
                     val = '#';
                 }
                 grid.push_str(&*format!("{} ", &val));
@@ -104,19 +122,93 @@ impl fmt::Debug for Board {
 
 impl Board {
     pub fn new(size: usize) -> Board {
-        Board {
+        let diag_rows = size * 2 - 1;
+        let mut b = Board {
             turn: Player::Blue,
             size: size,
             blues: vec![0; size],
             reds: vec![0; size],
             rocks: vec![0; size],
-            blues_r: vec![0; size],
-            reds_r: vec![0; size],
-            rocks_r: vec![0; size],
-        }
+            blues_invert: vec![0; size],
+            reds_invert: vec![0; size],
+            rocks_invert: vec![0; size],
+
+            diag_lookup: vec![vec![Coord(0, 0); size]; size],
+            blues_diag: vec![0; diag_rows],
+            reds_diag: vec![0; diag_rows],
+            rocks_diag: vec![0; diag_rows],
+
+            diag_lookup_rot: vec![vec![Coord(0, 0); size]; size],
+            blues_diag_rot: vec![0; diag_rows],
+            reds_diag_rot: vec![0; diag_rows],
+            rocks_diag_rot: vec![0; diag_rows],
+        };
+        b.init_diag_lookups();
+        b
     }
 
-    // Get horizontal moves, given the board masks
+    /* Need two diagonal representations of the board, and a lookup tables.
+     * The lookup tables are used for setting bits in the representations.
+     * The representations are only used for detecting diagonal win states.
+     *
+     *       00            02
+     *     10  01        01  12
+     *   20  11  02    00  11  22   -- Representations
+     *     21  12        10  21
+     *       22            22
+     *
+     *    00 11 22      20 10 00
+     *    10 21 31      30 21 11    -- Lookup tables
+     *    20 30 40      40 31 22
+     */
+    fn init_diag_lookups(&mut self) {
+        println!("init diag lookups");
+        let mut key_row_reset = 1;
+        let mut key_col_reset = 1;
+        let mut key_row = 0;
+        let mut key_col = 0;
+        let mut val_row = 0;
+        let mut val_col = 0;
+        let mut total = 0;
+        while total < self.size * self.size {
+            println!("total {}", total);
+            println!("keys {} {} | {} {}", key_row, key_col, key_row_reset, key_col_reset);
+            println!("vals {} {}", val_row, val_col);
+
+            self.diag_lookup[key_row][key_col] = Coord(val_row, val_col);
+            let (key_row_rot, key_col_rot) = rotate_cw(self.size, key_row, key_col);
+            self.diag_lookup_rot[key_row_rot][key_col_rot] = Coord(val_row, val_col);
+
+            // Reset from top row to the left column
+            if key_row == 0 && key_row_reset < self.size {
+                println!("Reset from top row to the left column, row {}", key_row_reset);
+                key_row = key_row_reset;
+                key_col = 0;
+                key_row_reset += 1;
+                val_col = 0;
+                val_row += 1;
+            // Reset from the right column to the bottom row
+            } else if key_col == self.size - 1 && key_col_reset < self.size {
+                println!("Reset from right col to bottom row, col {}", key_col_reset);
+                key_col = key_col_reset;
+                key_row = self.size - 1;
+                key_col_reset += 1;
+                val_col = 0;
+                val_row += 1;
+            // Normal traversal up and to the right
+            } else {
+                println!("normal traversal");
+                key_row -= 1;
+                key_col += 1;
+                val_col += 1;
+            }
+            total += 1;
+        }
+        println!("done with init diag lookups");
+    }
+
+    // Get horizontal moves, given the board masks.
+    // (call with both horizontal and vertical representations to get all moves)
     fn get_axis_moves(&self, reds: &Vec<u64>, blues: &Vec<u64>,
                       rocks: &Vec<u64>, transpose: bool) -> Vec<Move> {
         let mut moves = Vec::new();
@@ -154,36 +246,63 @@ impl Board {
     // Get all moves accessible from horizontal and vertical axes
     pub fn get_moves(&self) -> Vec<Move> {
         let mut moves = self.get_axis_moves(&self.blues, &self.reds, &self.rocks, false);
-        let mut ortho_moves = self.get_axis_moves(&self.blues_r, &self.reds_r, &self.rocks_r, true);
+        let mut ortho_moves = self.get_axis_moves(&self.blues_invert, &self.reds_invert, &self.rocks_invert, true);
         moves.append(&mut ortho_moves);
         set_to_vec(&mut vec_to_set(&mut moves))
     }
 
+    #[allow(dead_code)]
     pub fn set_move(&mut self, m: Move) {
         self.set(m.row, m.col, Some(m.player));
     }
 
+    // TODO create new struct for piece type; use that here.
+    #[allow(dead_code)]
     pub fn set(&mut self, row: usize, col: usize, val: Option<Player>) {
+        let (row_invert, col_invert) = (col, row);
+        let Coord(drow, dcol) = self.diag_lookup[row][col];
+        let Coord(drow_rot, dcol_rot) = self.diag_lookup_rot[row][col];
         if let Some(color) = val {
             match color {
                 Player::Blue => {
+                    // Set blues
                     self.blues[row] |= 1 << col;
-                    self.blues_r[col] |= 1 << row;
+                    self.blues_invert[row_invert] |= 1 << col_invert;
+                    self.blues_diag[drow] |= 1 << dcol;
+                    self.blues_diag_rot[drow_rot] |= 1 << dcol_rot;
+
+                    // Clear reds
                     self.reds[row] &= !0 & (0 << col);
-                    self.reds_r[col] &= !0 & (0 << row);
+                    self.reds_invert[row_invert] &= !0 & (0 << col_invert);
+                    self.reds_diag[drow] &= !0 & (0 << dcol);
+                    self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    // TODO rocks
                 },
                 Player::Red => {
+                    // Set reds
                     self.reds[row] |= 1 << col;
-                    self.reds_r[col] |= 1 << row;
+                    self.reds_invert[row_invert] |= 1 << col_invert;
+                    self.reds_diag[drow] |= 1 << dcol;
+                    self.reds_diag_rot[drow_rot] |= 1 << dcol_rot;
+
+                    // Clear blues
                     self.blues[row] &= !0 & (0 << col);
-                    self.blues_r[col] &= !0 & (0 << row);
+                    self.blues_invert[row_invert] &= !0 & (0 << col_invert);
+                    self.blues_diag[drow] &= !0 & (0 << dcol);
+                    self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    // TODO rocks
                 }
             }
         } else {
-            self.blues[row] &= !0 & (0 << col);
-            self.blues_r[col] &= !0 & (0 << row);
+            // Clear all TODO rocks
             self.reds[row] &= !0 & (0 << col);
-            self.reds_r[col] &= !0 & (0 << row);
+            self.reds_invert[row_invert] &= !0 & (0 << col_invert);
+            self.blues[row] &= !0 & (0 << col);
+            self.blues_invert[row_invert] &= !0 & (0 << col_invert);
+            self.reds_diag[drow] &= !0 & (0 << dcol);
+            self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+            self.blues_diag[drow] &= !0 & (0 << dcol);
+            self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
         }
     }
 
@@ -194,6 +313,8 @@ impl Board {
     }
 
     // Returns whether or not current Board state is a win for `player`
+    #[allow(unused_variables)]
+    #[allow(dead_code)]
     pub fn eval(&self, player: Player) -> bool {
         // TODO
         true
@@ -261,6 +382,7 @@ fn test_get_moves_basic_2() {
         Move { row: 1, col: 0, player: Player::Blue },
         Move { row: 1, col: 1, player: Player::Blue },
     ];
+    println!("{:?}", b);
     assert_eq!(vec_to_set(&mut expected), vec_to_set(&mut b.get_moves()));
 }
 
@@ -281,7 +403,7 @@ fn test_get_moves_basic_3() {
 
 #[test]
 fn test_get_moves_empty_2() {
-    let mut b = Board::new(2);
+    let b = Board::new(2);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },
@@ -293,7 +415,7 @@ fn test_get_moves_empty_2() {
 
 #[test]
 fn test_get_moves_empty_3() {
-    let mut b = Board::new(3);
+    let b = Board::new(3);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },

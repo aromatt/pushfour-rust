@@ -2,9 +2,9 @@
 #![feature(intrinsics)]
 
 mod board;
-mod pushfour_game;
+//mod pushfour_game;
 use board::*;
-use pushfour_game::*;
+//use pushfour_game::*;
 extern crate rustc_data_structures;
 extern crate core;
 
@@ -15,4 +15,13 @@ fn main() {
     b.set(2, 2, Some(Player::Blue)); // 0 0 B
     b.set(0, 2, Some(Player::Blue));
     println!("{:?}", b);
+    println!("{:?}", b.diag_lookup);
+    println!("{:?}", b.diag_lookup_rot);
+
+    /*
+    let mut b = Board::new(4);
+    println!("{:?}", b);
+    println!("{:?}", b.diag_lookup);
+    println!("{:?}", b.diag_lookup_r);
+    */
 }
