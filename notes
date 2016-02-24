@@ -1,0 +1,13 @@
+TODO:
+  - add detection of win states using the 4 blue and 4 red board representations
+  - add init board with rocks
+  - create abstraction for a board-piecetype pairing that keeps track of its own 4 rotations
+    - so that I don't have to type "red" "blue" and "rock" so many times
+  - Create an abstraction that handles coordinate calculations/lookups for indexing into each board-piecetype, so that each board-piecetype doesn't have to redo them.
+    - Would be created and passed to each board-piecetype in `set`
+        Indexer {
+          plain: Coord,
+          invert: Coord,
+          diag: Coord,
+          diag_rotate: Coord,
+        }

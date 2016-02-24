@@ -160,6 +160,16 @@ impl Board {
      *    00 11 22      20 10 00
      *    10 21 31      30 21 11    -- Lookup tables
      *    20 30 40      40 31 22
+     *
+     *      (1)           (2)
+     *
+     *    Alternative lookup table instead of (2), which results in an inversion
+     *    of representation (1). This lookup table is obtained by flipping (1)'s
+     *    lookup table about its middle row:
+     *
+     *      20 30 40
+     *      10 21 31
+     *      00 11 22
      */
     fn init_diag_lookups(&mut self) {
         println!("init diag lookups");
