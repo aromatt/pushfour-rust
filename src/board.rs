@@ -56,7 +56,7 @@ pub struct Move {
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.row, self.col, self.player)
+        write!(f, "Move ({}, {}, {})", self.row, self.col, self.player)
     }
 }
 
@@ -96,25 +96,27 @@ impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut grid = String::new();
         grid.push_str("\n");
-        for (_, ((&blue, &red), &rock)) in self.blues.iter()
-                                     .zip(self.reds.iter())
-                                     .zip(self.rocks.iter())
-                                     .enumerate() {
+        let mut row = 0;
+        while row < self.size {
             let mut col = 0;
+            let blue_row = self.blues[row];
+            let red_row = self.reds[row];
+            let rock_row = self.rocks[row];
             while col < self.size {
                 let mut val = '-';
                 let mask = 1 << col;
-                if blue & mask > 0 {
+                if blue_row & mask > 0 {
                     val = 'b';
-                } else if red & mask > 0 {
+                } else if red_row & mask > 0 {
                     val = 'r';
-                } else if rock & mask > 0 {
+                } else if rock_row & mask > 0 {
                     val = '#';
                 }
                 grid.push_str(&*format!("{} ", &val));
                 col += 1;
             }
             grid.push_str("\n");
+            row += 1;
         }
         write!(f, "{}Turn: {}", grid, self.turn)
     }
@@ -126,9 +128,11 @@ impl Board {
         let mut b = Board {
             turn: Player::Blue,
             size: size,
+
             blues: vec![0; size],
             reds: vec![0; size],
             rocks: vec![0; size],
+
             blues_invert: vec![0; size],
             reds_invert: vec![0; size],
             rocks_invert: vec![0; size],
@@ -222,11 +226,9 @@ impl Board {
     fn get_axis_moves(&self, reds: &Vec<u64>, blues: &Vec<u64>,
                       rocks: &Vec<u64>, transpose: bool) -> Vec<Move> {
         let mut moves = Vec::new();
-        for (row, ((&x, &y), &z)) in blues.iter()
-                                          .zip(reds.iter())
-                                          .zip(rocks.iter())
-                                          .enumerate() {
-            let combined = x | y | z;
+        let mut row = 0;
+        while row < self.size {
+            let combined = blues[row] | reds[row] | rocks[row];
             if let Some(zeros) = leading_zeros(combined) {
                 let col = 63 - zeros;
                 if col < self.size {
@@ -249,6 +251,7 @@ impl Board {
                     });
                 }
             }
+            row += 1;
         }
         moves
     }
