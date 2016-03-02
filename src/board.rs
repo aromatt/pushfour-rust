@@ -23,6 +23,17 @@ fn trailing_zeros(x: u64) -> Option<usize> {
     }
 }
 
+#[inline(always)]
+fn is_row_win(mut row: u64) -> bool {
+    if row == 0 { return false; }
+    let i = 0;
+    while i < 4 {
+        row = row & (row >> 1);
+        if row == 0 { return false; }
+    }
+    true
+}
+
 fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
     let mut set = HashSet::new();
     for m in vec.drain(..) { set.insert(m); }
@@ -36,6 +47,19 @@ fn set_to_vec<T: Eq + Hash>(set: &mut HashSet<T>) -> Vec<T> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+pub enum Piece {
+    Red,
+    Blue,
+    Rock
+}
+
+impl Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Piece {:?}", self)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Player {
     Red,
     Blue
@@ -43,7 +67,16 @@ pub enum Player {
 
 impl Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "player {:?}", self)
+        write!(f, "Player {:?}", self)
+    }
+}
+
+impl Player {
+    fn to_piece(&self) -> Piece {
+        match *self {
+            Player::Red => Piece::Red,
+            Player::Blue => Piece::Blue,
+        }
     }
 }
 
@@ -266,18 +299,17 @@ impl Board {
 
     #[allow(dead_code)]
     pub fn set_move(&mut self, m: Move) {
-        self.set(m.row, m.col, Some(m.player));
+        self.set(m.row, m.col, Some(m.player.to_piece()));
     }
 
-    // TODO create new struct for piece type; use that here.
     #[allow(dead_code)]
-    pub fn set(&mut self, row: usize, col: usize, val: Option<Player>) {
+    pub fn set(&mut self, row: usize, col: usize, val: Option<Piece>) {
         let (row_invert, col_invert) = (col, row);
         let Coord(drow, dcol) = self.diag_lookup[row][col];
         let Coord(drow_rot, dcol_rot) = self.diag_lookup_rot[row][col];
         if let Some(color) = val {
             match color {
-                Player::Blue => {
+                Piece::Blue => {
                     // Set blues
                     self.blues[row] |= 1 << col;
                     self.blues_invert[row_invert] |= 1 << col_invert;
@@ -289,9 +321,13 @@ impl Board {
                     self.reds_invert[row_invert] &= !0 & (0 << col_invert);
                     self.reds_diag[drow] &= !0 & (0 << dcol);
                     self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
-                    // TODO rocks
+
+                    // Clear rocks
+                    self.rocks[row] &= !0 & (0 << col);
+                    self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
+
                 },
-                Player::Red => {
+                Piece::Red => {
                     // Set reds
                     self.reds[row] |= 1 << col;
                     self.reds_invert[row_invert] |= 1 << col_invert;
@@ -303,11 +339,30 @@ impl Board {
                     self.blues_invert[row_invert] &= !0 & (0 << col_invert);
                     self.blues_diag[drow] &= !0 & (0 << dcol);
                     self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
-                    // TODO rocks
+
+                    // Clear rocks
+                    self.rocks[row] &= !0 & (0 << col);
+                    self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
+                },
+                Piece::Rock => {
+                    // Set rocks
+                    self.rocks[row] |= 1 << col;
+                    self.rocks_invert[row_invert] |= 1 << col_invert;
+
+                    // Clear blues
+                    self.blues[row] &= !0 & (0 << col);
+                    self.blues_invert[row_invert] &= !0 & (0 << col_invert);
+                    self.blues_diag[drow] &= !0 & (0 << dcol);
+                    self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+
+                    // Clear reds
+                    self.reds[row] &= !0 & (0 << col);
+                    self.reds_invert[row_invert] &= !0 & (0 << col_invert);
+                    self.reds_diag[drow] &= !0 & (0 << dcol);
+                    self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
                 }
             }
         } else {
-            // Clear all TODO rocks
             self.reds[row] &= !0 & (0 << col);
             self.reds_invert[row_invert] &= !0 & (0 << col_invert);
             self.blues[row] &= !0 & (0 << col);
@@ -316,21 +371,29 @@ impl Board {
             self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
             self.blues_diag[drow] &= !0 & (0 << dcol);
             self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+            self.rocks[row] &= !0 & (0 << col);
+            self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
         }
     }
 
-    pub fn get(&self, row: usize, col: usize) -> Option<Player> {
-        if self.blues[row] & (1 << col) != 0 { return Some(Player::Blue) };
-        if self.reds[row] & (1 << col) != 0 { return Some(Player::Red) };
+    pub fn get(&self, row: usize, col: usize) -> Option<Piece> {
+        if self.blues[row] & (1 << col) != 0 { return Some(Piece::Blue) };
+        if self.reds[row] & (1 << col) != 0 { return Some(Piece::Red) };
+        if self.rocks[row] & (1 << col) != 0 { return Some(Piece::Rock) };
         None
     }
 
     // Returns whether or not current Board state is a win for `player`
-    #[allow(unused_variables)]
-    #[allow(dead_code)]
-    pub fn eval(&self, player: Player) -> bool {
-        // TODO
-        true
+    pub fn is_win_state(&self, player: Player) -> bool {
+        let (main, invert, diag, diag_rot) = match player {
+            Player::Red => (&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
+            Player::Blue => (&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot)
+        };
+        for row in main { if is_row_win(*row) { return true; } }
+        for row in invert { if is_row_win(*row) { return true; } }
+        for row in diag { if is_row_win(*row) { return true; } }
+        for row in diag_rot { if is_row_win(*row) { return true; } }
+        false
     }
 }
 
@@ -340,16 +403,19 @@ fn test_get_set() {
 
     assert_eq!(None, b.get(1, 0));
 
-    b.set(0, 0, Some(Player::Blue));
-    assert_eq!(Some(Player::Blue), b.get(0, 0));
+    b.set(0, 0, Some(Piece::Blue));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
 
     assert_eq!(None, b.get(1, 0));
 
-    b.set(0, 0, Some(Player::Red));
-    assert_eq!(Some(Player::Red), b.get(0, 0));
+    b.set(0, 0, Some(Piece::Red));
+    assert_eq!(Some(Piece::Red), b.get(0, 0));
 
     b.set(0, 0, None);
     assert_eq!(None, b.get(0, 0));
+
+    b.set(0, 0, Some(Piece::Rock));
+    assert_eq!(Some(Piece::Rock), b.get(0, 0));
 }
 
 #[test]
@@ -358,15 +424,15 @@ fn test_clone() {
 
     assert_eq!(None, b.get(0, 0));
 
-    b.set(0, 0, Some(Player::Blue));
-    assert_eq!(Some(Player::Blue), b.get(0, 0));
+    b.set(0, 0, Some(Piece::Blue));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
 
     let mut c = b.clone();
-    assert_eq!(Some(Player::Blue), c.get(0, 0));
+    assert_eq!(Some(Piece::Blue), c.get(0, 0));
 
     // Change c and makes sure b is unchanged
-    c.set(0, 0, Some(Player::Red));
-    assert_eq!(Some(Player::Blue), b.get(0, 0));
+    c.set(0, 0, Some(Piece::Red));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
 }
 
 #[test]
@@ -387,10 +453,15 @@ fn test_trailing_zeros() {
 }
 
 #[test]
+fn test_is_row_win() {
+    assert!(is_row_win(0xF));
+}
+
+#[test]
 fn test_get_moves_basic_2() {
     let mut b = Board::new(2);
-    b.set(0, 0, Some(Player::Blue)); // B B
-    b.set(0, 1, Some(Player::Blue)); // 0 0
+    b.set(0, 0, Some(Piece::Blue)); // B B
+    b.set(0, 1, Some(Piece::Blue)); // 0 0
     let mut expected = vec![
         Move { row: 1, col: 0, player: Player::Blue },
         Move { row: 1, col: 1, player: Player::Blue },
@@ -402,9 +473,9 @@ fn test_get_moves_basic_2() {
 #[test]
 fn test_get_moves_basic_3() {
     let mut b = Board::new(3);
-    b.set(0, 0, Some(Player::Blue)); // B 0 0
-    b.set(1, 1, Some(Player::Blue)); // 0 B 0
-    b.set(2, 2, Some(Player::Blue)); // 0 0 B
+    b.set(0, 0, Some(Piece::Blue)); // B 0 0
+    b.set(1, 1, Some(Piece::Blue)); // 0 B 0
+    b.set(2, 2, Some(Piece::Blue)); // 0 0 B
     let mut expected = vec![
         Move { row: 0, col: 1, player: Player::Blue },
         Move { row: 1, col: 2, player: Player::Blue },
