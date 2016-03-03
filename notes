@@ -1,13 +1,26 @@
 TODO:
-  - add detection of win states using the 4 blue and 4 red board representations
-  - add init board with rocks
-  - create abstraction for a board-piecetype pairing that keeps track of its own 4 rotations
-    - so that I don't have to type "red" "blue" and "rock" so many times
-  - Create an abstraction that handles coordinate calculations/lookups for indexing into each board-piecetype, so that each board-piecetype doesn't have to redo them.
-    - Would be created and passed to each board-piecetype in `set`
-        Indexer {
-          plain: Coord,
-          invert: Coord,
-          diag: Coord,
-          diag_rotate: Coord,
-        }
+  - PERFORMANCE
+    - Verify that correct asm instructions are being used
+       http://huonw.github.io/blog/2015/08/simd-in-rust/
+       $ rustc -L ../rust-minimax/target/debug/ --crate-type=lib -g -o board src/board.rs
+       $ objdump -d board
+    - Cut down on unnecessary copying of memory
+    - Maybe allocate all memory ahead of time
+    - Do some profiling
+    - use u32 instead of u64?
+  - CODE CLEAN UP
+    - add init board with random rocks
+    - create abstraction for a board-piecetype pairing that keeps track of its
+      own 4 rotations
+      - so that I don't have to type "red" "blue" and "rock" so many times
+    - Create an abstraction that handles coordinate calculations/lookups for
+      indexing into each board-piecetype, so that each board-piecetype doesn't
+      have to redo them.
+      - Would be created and passed to each board-piecetype in `set`
+          Indexer {
+            plain: Coord,
+            invert: Coord,
+            diag: Coord,
+            diag_rotate: Coord,
+          }
+

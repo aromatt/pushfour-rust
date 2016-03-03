@@ -1,14 +1,22 @@
+#![feature(intrinsics)]             // UNCOMMENT TO COMPILE THIS FILE ON ITS OWN
+#![feature(rustc_private)]          // UNCOMMENT TO COMPILE THIS FILE ON ITS OWN
+//#![feature(platform_intrinsics)]
+
+extern crate rustc_data_structures;
+extern crate core;
+
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashSet;
-use core::hash::Hash;
-use core::cmp::Eq;
+use self::core::hash::Hash;
+use self::core::cmp::Eq;
 
 extern "rust-intrinsic" {
     fn ctlz<T>(x: T) -> T;
     fn cttz<T>(x: T) -> T;
 }
 
+//#[no_mangle]
 fn leading_zeros(x: u64) -> Option<usize> {
     unsafe {
         let i = ctlz(x) as usize;
@@ -16,6 +24,7 @@ fn leading_zeros(x: u64) -> Option<usize> {
     }
 }
 
+//#[no_mangle]
 fn trailing_zeros(x: u64) -> Option<usize> {
     unsafe {
         let i = cttz(x) as usize;
@@ -26,20 +35,23 @@ fn trailing_zeros(x: u64) -> Option<usize> {
 #[inline(always)]
 fn is_row_win(mut row: u64) -> bool {
     if row == 0 { return false; }
-    let i = 0;
-    while i < 4 {
+    let mut i = 0;
+    while i < 3 {
         row = row & (row >> 1);
         if row == 0 { return false; }
+        i += 1;
     }
     true
 }
 
+#[inline(always)]
 fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
     let mut set = HashSet::new();
     for m in vec.drain(..) { set.insert(m); }
     set
 }
 
+#[inline(always)]
 fn set_to_vec<T: Eq + Hash>(set: &mut HashSet<T>) -> Vec<T> {
     let mut vec = Vec::new();
     for m in set.drain() { vec.push(m); }
@@ -82,9 +94,9 @@ impl Player {
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Move {
-    row: usize,
-    col: usize,
-    player: Player
+    pub row: usize,
+    pub col: usize,
+    pub player: Player
 }
 
 impl fmt::Display for Move {
@@ -97,7 +109,6 @@ impl fmt::Display for Move {
 pub struct Coord(usize, usize);
 
 fn rotate_cw(size: usize, row: usize, col: usize) -> (usize, usize) {
-    println!("rotate {} {} {}", size, row, col);
     (col, size - row - 1)
 }
 
@@ -184,6 +195,14 @@ impl Board {
         b
     }
 
+    pub fn next_turn(&mut self) {
+        if self.turn == Player::Blue {
+            self.turn = Player::Red;
+        } else {
+            self.turn = Player::Blue;
+        }
+    }
+
     /* Need two diagonal representations of the board, and a lookup tables.
      * The lookup tables are used for setting bits in the representations.
      * The representations are only used for detecting diagonal win states.
@@ -209,7 +228,6 @@ impl Board {
      *      00 11 22
      */
     fn init_diag_lookups(&mut self) {
-        println!("init diag lookups");
         let mut key_row_reset = 1;
         let mut key_col_reset = 1;
         let mut key_row = 0;
@@ -218,9 +236,6 @@ impl Board {
         let mut val_col = 0;
         let mut total = 0;
         while total < self.size * self.size {
-            println!("total {}", total);
-            println!("keys {} {} | {} {}", key_row, key_col, key_row_reset, key_col_reset);
-            println!("vals {} {}", val_row, val_col);
 
             self.diag_lookup[key_row][key_col] = Coord(val_row, val_col);
             let (key_row_rot, key_col_rot) = rotate_cw(self.size, key_row, key_col);
@@ -228,7 +243,6 @@ impl Board {
 
             // Reset from top row to the left column
             if key_row == 0 && key_row_reset < self.size {
-                println!("Reset from top row to the left column, row {}", key_row_reset);
                 key_row = key_row_reset;
                 key_col = 0;
                 key_row_reset += 1;
@@ -236,7 +250,6 @@ impl Board {
                 val_row += 1;
             // Reset from the right column to the bottom row
             } else if key_col == self.size - 1 && key_col_reset < self.size {
-                println!("Reset from right col to bottom row, col {}", key_col_reset);
                 key_col = key_col_reset;
                 key_row = self.size - 1;
                 key_col_reset += 1;
@@ -244,14 +257,12 @@ impl Board {
                 val_row += 1;
             // Normal traversal up and to the right
             } else {
-                println!("normal traversal");
                 key_row -= 1;
                 key_col += 1;
                 val_col += 1;
             }
             total += 1;
         }
-        println!("done with init diag lookups");
     }
 
     // Get horizontal moves, given the board masks.
@@ -289,20 +300,30 @@ impl Board {
         moves
     }
 
-    // Get all moves accessible from horizontal and vertical axes
-    pub fn get_moves(&self) -> Vec<Move> {
+    // Get all moves, allowing duplicates
+    #[inline(always)]
+    pub fn get_moves_dirty(&self) -> Vec<Move> {
         let mut moves = self.get_axis_moves(&self.blues, &self.reds, &self.rocks, false);
-        let mut ortho_moves = self.get_axis_moves(&self.blues_invert, &self.reds_invert, &self.rocks_invert, true);
+        let mut ortho_moves = self.get_axis_moves(&self.blues_invert, &self.reds_invert,
+                                                  &self.rocks_invert, true);
         moves.append(&mut ortho_moves);
-        set_to_vec(&mut vec_to_set(&mut moves))
+        moves
     }
 
-    #[allow(dead_code)]
+    // Get all moves, in a HashSet
+    pub fn get_moves_set(&self) -> HashSet<Move> {
+        vec_to_set(&mut self.get_moves_dirty())
+    }
+
+    // Get all moves, as a uniq'd Veq
+    pub fn get_moves(&self) -> Vec<Move> {
+        set_to_vec(&mut self.get_moves_set())
+    }
+
     pub fn set_move(&mut self, m: Move) {
         self.set(m.row, m.col, Some(m.player.to_piece()));
     }
 
-    #[allow(dead_code)]
     pub fn set(&mut self, row: usize, col: usize, val: Option<Piece>) {
         let (row_invert, col_invert) = (col, row);
         let Coord(drow, dcol) = self.diag_lookup[row][col];
@@ -317,15 +338,14 @@ impl Board {
                     self.blues_diag_rot[drow_rot] |= 1 << dcol_rot;
 
                     // Clear reds
-                    self.reds[row] &= !0 & (0 << col);
-                    self.reds_invert[row_invert] &= !0 & (0 << col_invert);
-                    self.reds_diag[drow] &= !0 & (0 << dcol);
-                    self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    self.reds[row] &= !0 ^ (1 << col);
+                    self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
+                    self.reds_diag[drow] &= !0 ^ (1 << dcol);
+                    self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
 
                     // Clear rocks
-                    self.rocks[row] &= !0 & (0 << col);
-                    self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
-
+                    self.rocks[row] &= !0 ^ (1 << col);
+                    self.rocks_invert[row_invert] &= !0 ^ (1 << col_invert);
                 },
                 Piece::Red => {
                     // Set reds
@@ -335,14 +355,14 @@ impl Board {
                     self.reds_diag_rot[drow_rot] |= 1 << dcol_rot;
 
                     // Clear blues
-                    self.blues[row] &= !0 & (0 << col);
-                    self.blues_invert[row_invert] &= !0 & (0 << col_invert);
-                    self.blues_diag[drow] &= !0 & (0 << dcol);
-                    self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    self.blues[row] &= !0 ^ (1 << col);
+                    self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
+                    self.blues_diag[drow] &= !0 ^ (1 << dcol);
+                    self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
 
                     // Clear rocks
-                    self.rocks[row] &= !0 & (0 << col);
-                    self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
+                    self.rocks[row] &= !0 ^ (1 << col);
+                    self.rocks_invert[row_invert] &= !0 ^ (1 << col_invert);
                 },
                 Piece::Rock => {
                     // Set rocks
@@ -350,32 +370,33 @@ impl Board {
                     self.rocks_invert[row_invert] |= 1 << col_invert;
 
                     // Clear blues
-                    self.blues[row] &= !0 & (0 << col);
-                    self.blues_invert[row_invert] &= !0 & (0 << col_invert);
-                    self.blues_diag[drow] &= !0 & (0 << dcol);
-                    self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    self.blues[row] &= !0 ^ (1 << col);
+                    self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
+                    self.blues_diag[drow] &= !0 ^ (1 << dcol);
+                    self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
 
                     // Clear reds
-                    self.reds[row] &= !0 & (0 << col);
-                    self.reds_invert[row_invert] &= !0 & (0 << col_invert);
-                    self.reds_diag[drow] &= !0 & (0 << dcol);
-                    self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
+                    self.reds[row] &= !0 ^ (1 << col);
+                    self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
+                    self.reds_diag[drow] &= !0 ^ (1 << dcol);
+                    self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
                 }
             }
         } else {
-            self.reds[row] &= !0 & (0 << col);
-            self.reds_invert[row_invert] &= !0 & (0 << col_invert);
-            self.blues[row] &= !0 & (0 << col);
-            self.blues_invert[row_invert] &= !0 & (0 << col_invert);
-            self.reds_diag[drow] &= !0 & (0 << dcol);
-            self.reds_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
-            self.blues_diag[drow] &= !0 & (0 << dcol);
-            self.blues_diag_rot[drow_rot] &= !0 & (0 << dcol_rot);
-            self.rocks[row] &= !0 & (0 << col);
-            self.rocks_invert[row_invert] &= !0 & (0 << col_invert);
+            self.reds[row] &= !0 ^ (1 << col);
+            self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
+            self.blues[row] &= !0 ^ (1 << col);
+            self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
+            self.reds_diag[drow] &= !0 ^ (1 << dcol);
+            self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
+            self.blues_diag[drow] &= !0 ^ (1 << dcol);
+            self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
+            self.rocks[row] &= !0 ^ (1 << col);
+            self.rocks_invert[row_invert] &= !1 ^ (1 << col_invert);
         }
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, row: usize, col: usize) -> Option<Piece> {
         if self.blues[row] & (1 << col) != 0 { return Some(Piece::Blue) };
         if self.reds[row] & (1 << col) != 0 { return Some(Piece::Red) };
@@ -387,9 +408,9 @@ impl Board {
     pub fn is_win_state(&self, player: Player) -> bool {
         let (main, invert, diag, diag_rot) = match player {
             Player::Red => (&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
-            Player::Blue => (&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot)
+            Player::Blue => (&self.blues, &self.blues_invert, &self.blues_diag, &self.blues_diag_rot)
         };
-        for row in main { if is_row_win(*row) { return true; } }
+        for row in main { if is_row_win(*row) { return true; } } // TODO print the win state in a color
         for row in invert { if is_row_win(*row) { return true; } }
         for row in diag { if is_row_win(*row) { return true; } }
         for row in diag_rot { if is_row_win(*row) { return true; } }
@@ -416,6 +437,24 @@ fn test_get_set() {
 
     b.set(0, 0, Some(Piece::Rock));
     assert_eq!(Some(Piece::Rock), b.get(0, 0));
+}
+
+#[test]
+fn test_get_set_row() {
+    let mut b = Board::new(4);
+    b.set(0, 0, Some(Piece::Blue));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
+
+    // Verify setting red in the same row doesn't clear blue
+    b.set(0, 1, Some(Piece::Red));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
+    assert_eq!(Some(Piece::Red), b.get(0, 1));
+
+    // Again
+    b.set(0, 2, Some(Piece::Rock));
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
+    assert_eq!(Some(Piece::Rock), b.get(0, 2));
+
 }
 
 #[test]
@@ -454,7 +493,17 @@ fn test_trailing_zeros() {
 
 #[test]
 fn test_is_row_win() {
-    assert!(is_row_win(0xF));
+    assert!(!is_row_win(0));
+    assert!(!is_row_win(1));
+    assert!(!is_row_win(0b11));
+    assert!(!is_row_win(0b111));
+    assert!(is_row_win(0b1111));
+    assert!(is_row_win(0b11110));
+    assert!(is_row_win(0xF000000000000000));
+    assert!(is_row_win(0xAA02F20011002345));
+    assert!(!is_row_win(0xAA55000011002345));
+    assert!(is_row_win(0x1E00000000000000));
+    assert!(!is_row_win(0xE000000000000000));
 }
 
 #[test]
@@ -466,7 +515,6 @@ fn test_get_moves_basic_2() {
         Move { row: 1, col: 0, player: Player::Blue },
         Move { row: 1, col: 1, player: Player::Blue },
     ];
-    println!("{:?}", b);
     assert_eq!(vec_to_set(&mut expected), vec_to_set(&mut b.get_moves()));
 }
 
@@ -512,3 +560,6 @@ fn test_get_moves_empty_3() {
     ];
     assert_eq!(vec_to_set(&mut expected), vec_to_set(&mut b.get_moves()));
 }
+
+// TODO test
+//   - win states (don't forget diag)
