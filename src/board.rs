@@ -1,5 +1,3 @@
-#![feature(intrinsics)]             // UNCOMMENT TO COMPILE THIS FILE ON ITS OWN
-#![feature(rustc_private)]          // UNCOMMENT TO COMPILE THIS FILE ON ITS OWN
 //#![feature(platform_intrinsics)]
 
 extern crate rustc_data_structures;
@@ -11,12 +9,18 @@ use std::collections::HashSet;
 use self::core::hash::Hash;
 use self::core::cmp::Eq;
 
+const BOARD_SIZE: usize = 8;
+const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
+
 extern "rust-intrinsic" {
+    #[no_mangle]
     fn ctlz<T>(x: T) -> T;
+
+    #[no_mangle]
     fn cttz<T>(x: T) -> T;
 }
 
-//#[no_mangle]
+#[no_mangle]
 fn leading_zeros(x: u64) -> Option<usize> {
     unsafe {
         let i = ctlz(x) as usize;
@@ -24,7 +28,7 @@ fn leading_zeros(x: u64) -> Option<usize> {
     }
 }
 
-//#[no_mangle]
+#[no_mangle]
 fn trailing_zeros(x: u64) -> Option<usize> {
     unsafe {
         let i = cttz(x) as usize;
@@ -117,23 +121,23 @@ pub struct Board {
     size: usize,
     turn: Player,
 
-    blues: Vec<u64>,
-    reds: Vec<u64>,
-    rocks: Vec<u64>,
+    blues: [u64; BOARD_SIZE],
+    reds: [u64; BOARD_SIZE],
+    rocks: [u64; BOARD_SIZE],
 
-    blues_invert: Vec<u64>,
-    reds_invert: Vec<u64>,
-    rocks_invert: Vec<u64>,
+    blues_invert: [u64; BOARD_SIZE],
+    reds_invert: [u64; BOARD_SIZE],
+    rocks_invert: [u64; BOARD_SIZE],
 
     pub diag_lookup: Vec<Vec<Coord>>,
-    blues_diag: Vec<u64>,
-    reds_diag: Vec<u64>,
-    rocks_diag: Vec<u64>,
+    blues_diag: [u64; BOARD_DIAG_SIZE],
+    reds_diag: [u64; BOARD_DIAG_SIZE],
+    rocks_diag: [u64; BOARD_DIAG_SIZE],
 
     pub diag_lookup_rot: Vec<Vec<Coord>>,
-    blues_diag_rot: Vec<u64>,
-    reds_diag_rot: Vec<u64>,
-    rocks_diag_rot: Vec<u64>,
+    blues_diag_rot: [u64; BOARD_DIAG_SIZE],
+    reds_diag_rot: [u64; BOARD_DIAG_SIZE],
+    rocks_diag_rot: [u64; BOARD_DIAG_SIZE],
 }
 
 impl fmt::Debug for Board {
@@ -168,28 +172,27 @@ impl fmt::Debug for Board {
 
 impl Board {
     pub fn new(size: usize) -> Board {
-        let diag_rows = size * 2 - 1;
         let mut b = Board {
             turn: Player::Blue,
             size: size,
 
-            blues: vec![0; size],
-            reds: vec![0; size],
-            rocks: vec![0; size],
+            blues: [0; BOARD_SIZE],
+            reds: [0; BOARD_SIZE],
+            rocks: [0; BOARD_SIZE],
 
-            blues_invert: vec![0; size],
-            reds_invert: vec![0; size],
-            rocks_invert: vec![0; size],
+            blues_invert: [0; BOARD_SIZE],
+            reds_invert: [0; BOARD_SIZE],
+            rocks_invert: [0; BOARD_SIZE],
 
             diag_lookup: vec![vec![Coord(0, 0); size]; size],
-            blues_diag: vec![0; diag_rows],
-            reds_diag: vec![0; diag_rows],
-            rocks_diag: vec![0; diag_rows],
+            blues_diag: [0; BOARD_DIAG_SIZE],
+            reds_diag: [0; BOARD_DIAG_SIZE],
+            rocks_diag: [0; BOARD_DIAG_SIZE],
 
             diag_lookup_rot: vec![vec![Coord(0, 0); size]; size],
-            blues_diag_rot: vec![0; diag_rows],
-            reds_diag_rot: vec![0; diag_rows],
-            rocks_diag_rot: vec![0; diag_rows],
+            blues_diag_rot: [0; BOARD_DIAG_SIZE],
+            reds_diag_rot: [0; BOARD_DIAG_SIZE],
+            rocks_diag_rot: [0; BOARD_DIAG_SIZE],
         };
         b.init_diag_lookups();
         b
@@ -228,6 +231,7 @@ impl Board {
      *      00 11 22
      */
     fn init_diag_lookups(&mut self) {
+        //println!("init diag lookups");
         let mut key_row_reset = 1;
         let mut key_col_reset = 1;
         let mut key_row = 0;
@@ -267,8 +271,8 @@ impl Board {
 
     // Get horizontal moves, given the board masks.
     // (call with both horizontal and vertical representations to get all moves)
-    fn get_axis_moves(&self, reds: &Vec<u64>, blues: &Vec<u64>,
-                      rocks: &Vec<u64>, transpose: bool) -> Vec<Move> {
+    fn get_axis_moves(&self, reds: &[u64], blues: &[u64],
+                      rocks: &[u64], transpose: bool) -> Vec<Move> {
         let mut moves = Vec::new();
         let mut row = 0;
         while row < self.size {
@@ -301,7 +305,6 @@ impl Board {
     }
 
     // Get all moves, allowing duplicates
-    #[inline(always)]
     pub fn get_moves_dirty(&self) -> Vec<Move> {
         let mut moves = self.get_axis_moves(&self.blues, &self.reds, &self.rocks, false);
         let mut ortho_moves = self.get_axis_moves(&self.blues_invert, &self.reds_invert,
