@@ -1,13 +1,18 @@
 TODO:
   - PERFORMANCE
     - Verify that correct asm instructions are being used
-       http://huonw.github.io/blog/2015/08/simd-in-rust/
-       $ rustc -L ../rust-minimax/target/debug/ --crate-type=lib -g -o board src/board.rs
-       $ objdump -d board
-    - Cut down on unnecessary copying of memory
-    - Maybe allocate all memory ahead of time
+      - http://llvm.org/docs/LangRef.html#inline-assembler-expressions
+      - Looking at assembly:
+        http://huonw.github.io/blog/2015/08/simd-in-rust/
+        $ rustc -L ../rust-minimax/target/debug/ --crate-type=lib -g -o board src/board.rs
+        $ objdump -d board
+    - Add AB-pruning
     - Do some profiling
-    - use u32 instead of u64?
+    - Cut down on unnecessary copying of memory (use copy instead of clone? measure the effect)
+    - Use smaller types instead of u64?
+    - https://github.com/huonw/llvmint
+      - has a simd instruction for 8 cttz at once!
+      - http://huonw.github.io/llvmint/llvmint/fn.cttz_v8i16.html
   - CODE CLEAN UP
     - add init board with random rocks
     - create abstraction for a board-piecetype pairing that keeps track of its
@@ -23,4 +28,6 @@ TODO:
             diag: Coord,
             diag_rotate: Coord,
           }
+    -
+
 

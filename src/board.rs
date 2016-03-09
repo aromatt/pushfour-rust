@@ -1,5 +1,3 @@
-//#![feature(platform_intrinsics)]
-
 extern crate rustc_data_structures;
 extern crate core;
 
@@ -75,7 +73,7 @@ impl Display for Piece {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Player {
     Red,
     Blue
@@ -109,14 +107,14 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Coord(usize, usize);
 
 fn rotate_cw(size: usize, row: usize, col: usize) -> (usize, usize) {
     (col, size - row - 1)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Board {
     size: usize,
     turn: Player,
@@ -129,12 +127,12 @@ pub struct Board {
     reds_invert: [u64; BOARD_SIZE],
     rocks_invert: [u64; BOARD_SIZE],
 
-    pub diag_lookup: Vec<Vec<Coord>>,
+    pub diag_lookup: [[Coord; BOARD_SIZE]; BOARD_SIZE],
     blues_diag: [u64; BOARD_DIAG_SIZE],
     reds_diag: [u64; BOARD_DIAG_SIZE],
     rocks_diag: [u64; BOARD_DIAG_SIZE],
 
-    pub diag_lookup_rot: Vec<Vec<Coord>>,
+    pub diag_lookup_rot: [[Coord; BOARD_SIZE]; BOARD_SIZE],
     blues_diag_rot: [u64; BOARD_DIAG_SIZE],
     reds_diag_rot: [u64; BOARD_DIAG_SIZE],
     rocks_diag_rot: [u64; BOARD_DIAG_SIZE],
@@ -184,12 +182,12 @@ impl Board {
             reds_invert: [0; BOARD_SIZE],
             rocks_invert: [0; BOARD_SIZE],
 
-            diag_lookup: vec![vec![Coord(0, 0); size]; size],
+            diag_lookup: [[Coord(0, 0); BOARD_SIZE]; BOARD_SIZE],
             blues_diag: [0; BOARD_DIAG_SIZE],
             reds_diag: [0; BOARD_DIAG_SIZE],
             rocks_diag: [0; BOARD_DIAG_SIZE],
 
-            diag_lookup_rot: vec![vec![Coord(0, 0); size]; size],
+            diag_lookup_rot: [[Coord(0, 0); BOARD_SIZE]; BOARD_SIZE],
             blues_diag_rot: [0; BOARD_DIAG_SIZE],
             reds_diag_rot: [0; BOARD_DIAG_SIZE],
             rocks_diag_rot: [0; BOARD_DIAG_SIZE],
