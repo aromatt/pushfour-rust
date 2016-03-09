@@ -30,4 +30,8 @@ TODO:
           }
     -
 
+SIMD crate
+[dependencies.simd]
+git = "https://github.com/huonw/simd"
+
 

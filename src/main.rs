@@ -1,6 +1,7 @@
 #![feature(rustc_private)]
 #![feature(platform_intrinsics)]
 #![feature(intrinsics)]
+#![feature(asm)]
 
 use std::io;
 use board::*;

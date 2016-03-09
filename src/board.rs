@@ -7,8 +7,34 @@ use std::collections::HashSet;
 use self::core::hash::Hash;
 use self::core::cmp::Eq;
 
-const BOARD_SIZE: usize = 8;
+const BOARD_SIZE: usize = 6;
 const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
+
+fn add(a: i32, b: i32) -> i32 {
+    let c: i32;
+    unsafe {
+        asm!("add $2, $0"
+             : "=r"(c)
+             : "0"(a), "r"(b)
+            );
+    }
+    c
+}
+
+//http://llvm.org/docs/LangRef.html#inline-asm-modifiers
+//https://doc.rust-lang.org/book/inline-assembly.html
+fn bsf(a: u32) -> u64 {
+    let i: u64;
+    unsafe {
+        asm!("bsf $0"
+             : "=r"(i)
+             : "r"(a)
+             :
+             : "intel"
+            );
+    }
+    i
+}
 
 extern "rust-intrinsic" {
     #[no_mangle]
