@@ -10,7 +10,7 @@ use pushfour_game::minimax::{Minimax, Game};
 mod board;
 mod pushfour_game;
 
-static BOARD_SIZE: usize = 8;
+static BOARD_SIZE: usize = 6;
 static DEPTH: i32 = 5;
 
 // Clean up player... I don't think Board needs it
@@ -20,7 +20,7 @@ fn main() {
     println!("New pushfour game.");
     b.set(1, 3, Some(Piece::Rock));
     b.set(3, 1, Some(Piece::Rock));
-    b.set(5, 6, Some(Piece::Rock));
+    b.set(4, 4, Some(Piece::Rock));
     println!("Board state: {:?}", b);
 
     loop {
@@ -50,6 +50,11 @@ fn main() {
         println!("Board state: {:?}", b);
         if b.is_win_state(Player::Blue) {
             println!("\nYou win!\n");
+            break;
+        }
+
+        if b.get_moves_set().len() == 0 {
+            println!("\nCat's game.\n");
             break;
         }
 
