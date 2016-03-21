@@ -10,6 +10,10 @@ use self::core::cmp::Eq;
 const BOARD_SIZE: usize = 8;
 const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
 
+const BLUE_CHAR: char = 'b';
+const RED_CHAR: char = 'r';
+const ROCK_CHAR: char = '#';
+
 fn add(a: i32, b: i32) -> i32 {
     let c: i32;
     unsafe {
@@ -184,11 +188,11 @@ impl fmt::Debug for Board {
                 let mut val = '-';
                 let mask = 1 << col;
                 if blue_row & mask > 0 {
-                    val = 'b';
+                    val = BLUE_CHAR;
                 } else if red_row & mask > 0 {
-                    val = 'r';
+                    val = RED_CHAR;
                 } else if rock_row & mask > 0 {
-                    val = '#';
+                    val = ROCK_CHAR;
                 }
                 grid.push_str(&*format!("{} ", &val));
                 col += 1;
@@ -228,6 +232,22 @@ impl Board {
         b
     }
 
+    pub fn from_str(size: usize, s: &str) -> Board {
+        let mut b = Self::new(size);
+        for (row, row_str) in s.lines().enumerate() {
+            if row == 0 { continue; }
+            for (col, c) in row_str.trim()[2..size * 2 + 1].replace(" ", "").chars().enumerate() {
+                match c {
+                    BLUE_CHAR => b.set(row - 1, col, Some(Piece::Blue)),
+                    RED_CHAR => b.set(row - 1, col, Some(Piece::Red)),
+                    ROCK_CHAR => b.set(row - 1, col, Some(Piece::Rock)),
+                    _ => {},
+                }
+            }
+        }
+        b
+    }
+
     pub fn next_turn(&mut self) {
         if self.turn == Player::Blue {
             self.turn = Player::Red;
@@ -261,7 +281,6 @@ impl Board {
      *      00 11 22
      */
     fn init_diag_lookups(&mut self) {
-        //println!("init diag lookups");
         let mut key_row_reset = 1;
         let mut key_col_reset = 1;
         let mut key_row = 0;
@@ -594,5 +613,18 @@ fn test_get_moves_empty_3() {
     assert_eq!(vec_to_set(&mut expected), vec_to_set(&mut b.get_moves()));
 }
 
+#[test]
+fn test_board_from_str() {
+    let s = "+ 0 1 2 3
+             0 b - - -
+             1 r - - #
+             2 - - - b
+             3 - - - -";
+    let b = Board::from_str(4, s);
+    assert_eq!(Some(Piece::Blue), b.get(0, 0));
+    assert_eq!(Some(Piece::Red), b.get(1, 0));
+    assert_eq!(Some(Piece::Rock), b.get(1, 3));
+    assert_eq!(Some(Piece::Blue), b.get(2, 3));
+}
 // TODO test
 //   - win states (don't forget diag)

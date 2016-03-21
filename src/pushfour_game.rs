@@ -19,7 +19,7 @@ impl Game<Board, Move> for PushfourGame {
         root.get_moves()
     }
 
-    fn eval(&self, state: &Board, my_turn: bool) -> i32 { // TODO my_turn not used
+    fn eval(&self, state: &Board, _: bool) -> i32 {
         if self.player == Player::Red {
             if state.is_win_state(Player::Red) {
                 1
