@@ -169,6 +169,9 @@ pub struct Board {
 impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut grid = String::new();
+        grid.push_str("\n+ ");
+        let mut col = 0;
+        while col < self.size { grid.push_str(&*format!("{} ", col)); col += 1; }
         grid.push_str("\n");
         let mut row = 0;
         while row < self.size {
@@ -193,10 +196,6 @@ impl fmt::Debug for Board {
             grid.push_str("\n");
             row += 1;
         }
-        let mut col = 0;
-        grid.push_str("  ");
-        while col < self.size { grid.push_str(&*format!("{} ", col)); col += 1; }
-        grid.push_str("\n");
         write!(f, "{}Turn: {}", grid, self.turn)
     }
 }
