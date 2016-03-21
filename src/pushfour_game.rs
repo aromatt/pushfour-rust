@@ -14,29 +14,33 @@ impl PushfourGame {
     }
 }
 
-impl Game<Board, Move, f32> for PushfourGame {
+impl Game<Board, Move> for PushfourGame {
     fn get_moves(&self, root: &Board) -> Vec<Move> {
         root.get_moves()
     }
 
-    fn eval(&self, state: &Board, my_turn: bool) -> f32 { // TODO my_turn not used
+    fn eval(&self, state: &Board, my_turn: bool) -> i32 { // TODO my_turn not used
         if self.player == Player::Red {
             if state.is_win_state(Player::Red) {
-                1.0
+                1
             } else if state.is_win_state(Player::Blue) {
-                -1.0
+                -1
             } else {
-                0.0
+                0
             }
         } else {
             if state.is_win_state(Player::Blue) {
-                1.0
+                1
             } else if state.is_win_state(Player::Red) {
-                -1.0
+                -1
             } else {
-                0.0
+                0
             }
         }
+    }
+
+    fn gameover(&self, state: &Board) -> bool {
+        state.is_win_state(Player::Blue) || state.is_win_state(Player::Red)
     }
 
     fn apply(&self, state: &Board, m: Move) -> Board {

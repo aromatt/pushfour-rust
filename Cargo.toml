@@ -6,4 +6,4 @@ authors = [ "Andrew Matteson <amatteson3@gmail.com>" ]
 
 [dependencies.minimax]
 git = "http://github.com/aromatt/rust-minimax"
-version = "0.4.0"
+version = "0.6.0"

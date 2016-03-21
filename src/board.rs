@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use self::core::hash::Hash;
 use self::core::cmp::Eq;
 
-const BOARD_SIZE: usize = 6;
+const BOARD_SIZE: usize = 8;
 const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
 
 fn add(a: i32, b: i32) -> i32 {
@@ -23,6 +23,7 @@ fn add(a: i32, b: i32) -> i32 {
 
 //http://llvm.org/docs/LangRef.html#inline-asm-modifiers
 //https://doc.rust-lang.org/book/inline-assembly.html
+/*
 fn bsf(a: u32) -> u64 {
     let i: u64;
     unsafe {
@@ -35,6 +36,7 @@ fn bsf(a: u32) -> u64 {
     }
     i
 }
+*/
 
 extern "rust-intrinsic" {
     #[no_mangle]
@@ -120,7 +122,7 @@ impl Player {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub struct Move {
     pub row: usize,
     pub col: usize,
@@ -174,6 +176,7 @@ impl fmt::Debug for Board {
             let blue_row = self.blues[row];
             let red_row = self.reds[row];
             let rock_row = self.rocks[row];
+            grid.push_str(&*format!("{} ", row));
             while col < self.size {
                 let mut val = '-';
                 let mask = 1 << col;
@@ -190,6 +193,10 @@ impl fmt::Debug for Board {
             grid.push_str("\n");
             row += 1;
         }
+        let mut col = 0;
+        grid.push_str("  ");
+        while col < self.size { grid.push_str(&*format!("{} ", col)); col += 1; }
+        grid.push_str("\n");
         write!(f, "{}Turn: {}", grid, self.turn)
     }
 }
