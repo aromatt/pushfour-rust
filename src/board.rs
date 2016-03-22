@@ -14,6 +14,7 @@ const BLUE_CHAR: char = 'b';
 const RED_CHAR: char = 'r';
 const ROCK_CHAR: char = '#';
 
+/*
 fn add(a: i32, b: i32) -> i32 {
     let c: i32;
     unsafe {
@@ -24,6 +25,7 @@ fn add(a: i32, b: i32) -> i32 {
     }
     c
 }
+*/
 
 //http://llvm.org/docs/LangRef.html#inline-asm-modifiers
 //https://doc.rust-lang.org/book/inline-assembly.html

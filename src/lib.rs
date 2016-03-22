@@ -1,4 +1,12 @@
+#![feature(rustc_private)]
+#![feature(platform_intrinsics)]
+#![feature(intrinsics)]
+#![feature(asm)]
+
 extern crate minimax;
+
+pub mod board;
+
 use self::minimax::Game;
 use board::*;
 

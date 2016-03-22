@@ -1,15 +1,11 @@
-#![feature(rustc_private)]
-#![feature(platform_intrinsics)]
-#![feature(intrinsics)]
-#![feature(asm)]
-
 use std::io;
-use board::*;
-use pushfour_game::PushfourGame;
-use pushfour_game::minimax::{Minimax, Game};
 
-mod board;
-mod pushfour_game;
+extern crate pushfour;
+extern crate minimax;
+
+use minimax::{Minimax, Game};
+use pushfour::PushfourGame;
+use pushfour::board::*;
 
 static BOARD_SIZE: usize = 8;
 static DEPTH: i32 = 6;
@@ -64,7 +60,6 @@ fn main() {
 
         // Compute and apply bot move
         let bot_move = Minimax::best_move(DEPTH, &g, &b);
-        //println!("My move: {:?}", bot_move);
         b = g.apply(&b, bot_move);
         println!("New state: {:?}", b);
         if b.is_win_state(Player::Red) {
