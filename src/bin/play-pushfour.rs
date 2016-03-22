@@ -8,7 +8,7 @@ use pushfour::PushfourGame;
 use pushfour::board::*;
 
 static BOARD_SIZE: usize = 8;
-static DEPTH: i32 = 6;
+static DEPTH: i32 = 7;
 
 // Clean up player... I don't think Board needs it
 fn main() {

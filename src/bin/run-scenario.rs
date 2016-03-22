@@ -44,7 +44,7 @@ impl From<num::ParseIntError> for CliError {
 }
 
 fn parse_scenario_path(path: &str) -> Result<(usize, i32), CliError> {
-    let re = Regex::new(r"size_(\d*)_depth_(\d*)").unwrap();
+    let re = Regex::new(r"size_(\d*)_depth_(\d*)\.txt$").unwrap();
     let m = try!(re.captures_iter(path).nth(0).ok_or(CliError::InvalidName));
     let size = try!(m.at(1).unwrap().parse::<usize>());
     let depth = try!(m.at(2).unwrap().parse::<i32>());

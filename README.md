@@ -8,11 +8,16 @@ This project currently depends on [Nightly Rust](https://doc.rust-lang.org/book/
 
 ## Run tests
 
-    $ cargo test
+    $ cargo test && ./baseline
 
 ## Play against the bot
 
     $ cargo run
+
+Or:
+
+    $ cargo build --release
+    $ ./target/release/play-pushfour
 
 ## Run scenarios
 There are game scenarios for debugging the bot's logic in `tests/scenarios/`. To run them:
