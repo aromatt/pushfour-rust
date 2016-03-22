@@ -73,10 +73,12 @@ fn run_scenario(path: &str) {
     let mut b = load_scenario(size, path);
     b.next_turn();
 
-    print!("\n##### Scenario (depth: {}) #####{:?}\n", depth, b);
+    println!("\n##### Scenario (depth: {}) #####{:?}", depth, b);
+    println!("Current board score: {}", b.score(Player::Red));
     let mv = Minimax::best_move(depth, &g, &b);
     let b_next = g.apply(&b, mv);
     println!("\nBest move:{:?}", b_next);
+    println!("New board score: {}\n", b_next.score(Player::Red));
 }
 
 fn main() {

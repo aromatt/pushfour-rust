@@ -751,5 +751,21 @@ fn test_score_adv_2() {
     let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 2);
 }
+
+#[test]
+fn test_score_adv_special() {
+    let s = "+ 0 1 2 3 4 5 6 7
+             0 - - - - - - - -
+             1 - - r # - - - -
+             2 - - - - - - - -
+             3 - # - - r - - b
+             4 b b b b # - - r
+             5 - - - b b - - r
+             6 - - - - - r - r
+             7 - - - - - r r b";
+    let b = Board::from_str(8, s);
+    assert_eq!(b.score(Player::Red), -1);
+}
+
 // TODO test
 //   - win states (don't forget diag)

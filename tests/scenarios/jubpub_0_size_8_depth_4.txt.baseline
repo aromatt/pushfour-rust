@@ -10,6 +10,7 @@
 6 - - - - r b b b 
 7 - - - - r b b r 
 Turn: Player Red
+Current board score: -1
 
 Best move:
 + 0 1 2 3 4 5 6 7 
@@ -22,3 +23,5 @@ Best move:
 6 - - - - r b b b 
 7 - - - - r b b r 
 Turn: Player Blue
+New board score: -1
+
