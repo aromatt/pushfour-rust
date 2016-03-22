@@ -27,32 +27,16 @@ impl Game<Board, Move> for PushfourGame {
         root.get_moves()
     }
 
-    fn eval(&self, state: &Board, _: bool) -> i32 {
-        if self.player == Player::Red {
-            if state.is_win_state(Player::Red) {
-                1
-            } else if state.is_win_state(Player::Blue) {
-                -1
-            } else {
-                0
-            }
-        } else {
-            if state.is_win_state(Player::Blue) {
-                1
-            } else if state.is_win_state(Player::Red) {
-                -1
-            } else {
-                0
-            }
-        }
+    fn eval(&self, b: &Board, _: bool) -> i32 {
+        if self.player == Player::Red { b.score(Player::Red) } else { b.score(Player::Blue) }
     }
 
-    fn gameover(&self, state: &Board) -> bool {
-        state.is_win_state(Player::Blue) || state.is_win_state(Player::Red)
+    fn gameover(&self, b: &Board) -> bool {
+        b.is_win_state(Player::Blue) || b.is_win_state(Player::Red)
     }
 
-    fn apply(&self, state: &Board, m: Move) -> Board {
-        let mut cloned = state.clone();
+    fn apply(&self, b: &Board, m: Move) -> Board {
+        let mut cloned = b.clone();
         cloned.set_move(m);
         cloned.next_turn();
         cloned

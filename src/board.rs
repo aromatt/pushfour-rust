@@ -5,7 +5,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::collections::HashSet;
 use self::core::hash::Hash;
-use self::core::cmp::Eq;
+use self::core::cmp::{Eq, max};
 
 const BOARD_SIZE: usize = 8;
 const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
@@ -45,13 +45,16 @@ fn bsf(a: u32) -> u64 {
 */
 
 extern "rust-intrinsic" {
+    #[allow(private_no_mangle_fns)]
     #[no_mangle]
     fn ctlz<T>(x: T) -> T;
 
+    #[allow(private_no_mangle_fns)]
     #[no_mangle]
     fn cttz<T>(x: T) -> T;
 }
 
+#[allow(private_no_mangle_fns)]
 #[no_mangle]
 fn leading_zeros(x: u64) -> Option<usize> {
     unsafe {
@@ -60,6 +63,7 @@ fn leading_zeros(x: u64) -> Option<usize> {
     }
 }
 
+#[allow(private_no_mangle_fns)]
 #[no_mangle]
 fn trailing_zeros(x: u64) -> Option<usize> {
     unsafe {
@@ -80,6 +84,17 @@ fn is_row_win(mut row: u64) -> bool {
     true
 }
 
+#[inline(always)]
+fn score_row(mut row: u64) -> i32 {
+    if row == 0 { return 0; }
+    let mut i = 1;
+    while i < 4 {
+        row = row & (row >> 1);
+        if row == 0 { break; }
+        i += 1;
+    }
+    i
+}
 #[inline(always)]
 fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
     let mut set = HashSet::new();
@@ -470,6 +485,27 @@ impl Board {
         for row in diag_rot { if is_row_win(*row) { return true; } }
         false
     }
+
+    // Returns difference in lengths of each player's longest contiguous run
+    pub fn score(&self, player: Player) -> i32 {
+        let (reds, blues) = ((&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
+                             (&self.blues, &self.blues_invert, &self.blues_diag, &self.blues_diag_rot));
+        let (mine, theirs) = match player {
+            Player::Red => (reds, blues),
+            Player::Blue => (blues, reds),
+        };
+        let mut my_score = 0;
+        let mut their_score = 0;
+        for row in mine.0 { my_score = max(my_score, score_row(*row)); }
+        for row in mine.1 { my_score = max(my_score, score_row(*row)); }
+        for row in mine.2 { my_score = max(my_score, score_row(*row)); }
+        for row in mine.3 { my_score = max(my_score, score_row(*row)); }
+        for row in theirs.0 { their_score = max(their_score, score_row(*row)); }
+        for row in theirs.1 { their_score = max(their_score, score_row(*row)); }
+        for row in theirs.2 { their_score = max(their_score, score_row(*row)); }
+        for row in theirs.3 { their_score = max(their_score, score_row(*row)); }
+        my_score - their_score
+    }
 }
 
 #[test]
@@ -561,6 +597,21 @@ fn test_is_row_win() {
 }
 
 #[test]
+fn test_score_row() {
+    assert_eq!(0, score_row(0));
+    assert_eq!(1, score_row(1));
+    assert_eq!(2, score_row(0b11));
+    assert_eq!(3, score_row(0b111));
+    assert_eq!(4, score_row(0b1111));
+    assert_eq!(4, score_row(0b11110));
+    assert_eq!(4, score_row(0xF000000000000000));
+    assert_eq!(4, score_row(0xAA02F20011002345));
+    assert_eq!(2, score_row(0xAA55000011002345));
+    assert_eq!(4, score_row(0x1E00000000000000));
+    assert_eq!(3, score_row(0xE000000000000000));
+}
+
+#[test]
 fn test_get_moves_basic_2() {
     let mut b = Board::new(2);
     b.set(0, 0, Some(Piece::Blue)); // B B
@@ -627,6 +678,78 @@ fn test_board_from_str() {
     assert_eq!(Some(Piece::Red), b.get(1, 0));
     assert_eq!(Some(Piece::Rock), b.get(1, 3));
     assert_eq!(Some(Piece::Blue), b.get(2, 3));
+}
+
+#[test]
+fn test_score_blank() {
+    let s = "+ 0 1 2 3 4
+             0 - - - - -
+             1 - - - # -
+             2 - - - - -
+             3 - - - - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 0);
+}
+
+#[test]
+fn test_score_even_1() {
+    let s = "+ 0 1 2 3 4
+             0 - - b - -
+             1 - - - # -
+             2 - - r - -
+             3 - - - - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 0);
+}
+
+#[test]
+fn test_score_even_2() {
+    let s = "+ 0 1 2 3 4
+             0 - - b b -
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 0);
+}
+
+#[test]
+fn test_score_even_3() {
+    let s = "+ 0 1 2 3 4
+             0 - b b b -
+             1 - - - # -
+             2 - - r - -
+             3 - - r r -
+             4 - - - - r";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 0);
+}
+
+#[test]
+fn test_score_adv_1() {
+    let s = "+ 0 1 2 3 4
+             0 - b b b -
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 1);
+}
+
+#[test]
+fn test_score_adv_2() {
+    let s = "+ 0 1 2 3 4
+             0 - b b b b
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score(Player::Blue), 2);
 }
 // TODO test
 //   - win states (don't forget diag)
