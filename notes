@@ -1,5 +1,11 @@
 TODO:
-  - PERFORMANCE
+  - STRATEGY
+    - take winnability into account for score, not just longest contiguous runs
+      - jubpub_1_sizee_8_depth_7.txt
+        - thinks any move is as good as any other because score is 0 no matter what, because each
+        player's max run is three--even though his are landlocked and therefore cannot contribute
+        to a win for him.
+  - RUN-TIME PERFORMANCE
     - Verify that correct asm instructions are being used
       - http://llvm.org/docs/LangRef.html#inline-assembler-expressions
       - Looking at assembly:

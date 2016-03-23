@@ -8,7 +8,7 @@ This project currently depends on [Nightly Rust](https://doc.rust-lang.org/book/
 
 ## Run tests
 
-    $ cargo test && ./baseline
+    $ cargo test && ./run-scenarios
 
 ## Play against the bot
 
