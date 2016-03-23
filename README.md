@@ -1,8 +1,13 @@
 # pushfour-rust [![Build Status](https://travis-ci.org/aromatt/pushfour-rust.svg?branch=master)](https://travis-ci.org/aromatt/pushfour-rust)
 A pushfour bot in Rust. Uses minimax with alpha-beta pruning.
 
+## What's Pushfour?
+Connect Four, except pieces can be inserted from any edge. Boards are initialized
+with random obstructions to make things interesting.
+
 ## Dependencies
-This project currently depends on [Nightly Rust](https://doc.rust-lang.org/book/nightly-rust.html). If you're ok with executing arbitrary code from the internet, just run:
+This project currently depends on [Nightly Rust](https://doc.rust-lang.org/book/nightly-rust.html).
+If you're ok with executing arbitrary code from the internet, just run:
 
     $ curl -s https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly
 
@@ -11,6 +16,8 @@ This project currently depends on [Nightly Rust](https://doc.rust-lang.org/book/
     $ cargo test && ./run-scenarios
 
 ## Play against the bot
+Do either of the following (you'll be player 'b'; enter colon-separated `row:col` coordinates on
+your turn):
 
     $ cargo run
 

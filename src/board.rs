@@ -486,7 +486,8 @@ impl Board {
         false
     }
 
-    // Returns difference in lengths of each player's longest contiguous run
+    // Returns difference in lengths of each player's longest contiguous run. If a player is in a
+    // win state, add 8 extra points to their existing 4.
     pub fn score(&self, player: Player) -> i32 {
         let (reds, blues) = ((&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
                              (&self.blues, &self.blues_invert, &self.blues_diag, &self.blues_diag_rot));
@@ -500,10 +501,12 @@ impl Board {
         for row in mine.1 { my_score = max(my_score, score_row(*row)); }
         for row in mine.2 { my_score = max(my_score, score_row(*row)); }
         for row in mine.3 { my_score = max(my_score, score_row(*row)); }
+        my_score = my_score | ((my_score & 4) << 1);
         for row in theirs.0 { their_score = max(their_score, score_row(*row)); }
         for row in theirs.1 { their_score = max(their_score, score_row(*row)); }
         for row in theirs.2 { their_score = max(their_score, score_row(*row)); }
         for row in theirs.3 { their_score = max(their_score, score_row(*row)); }
+        their_score = their_score | ((their_score & 4) << 1);
         my_score - their_score
     }
 }
@@ -741,7 +744,7 @@ fn test_score_adv_1() {
 }
 
 #[test]
-fn test_score_adv_2() {
+fn test_score_win() {
     let s = "+ 0 1 2 3 4
              0 - b b b b
              1 - - - # -
@@ -749,11 +752,11 @@ fn test_score_adv_2() {
              3 - - r - -
              4 - - - - -";
     let b = Board::from_str(5, s);
-    assert_eq!(b.score(Player::Blue), 2);
+    assert_eq!(b.score(Player::Blue), 10);
 }
 
 #[test]
-fn test_score_adv_special() {
+fn test_score_lose() {
     let s = "+ 0 1 2 3 4 5 6 7
              0 - - - - - - - -
              1 - - r # - - - -
@@ -764,7 +767,7 @@ fn test_score_adv_special() {
              6 - - - - - r - r
              7 - - - - - r r b";
     let b = Board::from_str(8, s);
-    assert_eq!(b.score(Player::Red), -1);
+    assert_eq!(b.score(Player::Red), -9);
 }
 
 // TODO test
