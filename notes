@@ -6,15 +6,14 @@ TODO:
         player's max run is three--even though his are landlocked and therefore cannot contribute
         to a win for him.
   - RUN-TIME PERFORMANCE
+    - Represent moves as a bit vector (there are only 64 positions on the board)
     - Verify that correct asm instructions are being used
       - http://llvm.org/docs/LangRef.html#inline-assembler-expressions
       - Looking at assembly:
         http://huonw.github.io/blog/2015/08/simd-in-rust/
         $ rustc -L ../rust-minimax/target/debug/ --crate-type=lib -g -o board src/board.rs
         $ objdump -d board
-    - Add AB-pruning
     - Do some profiling
-    - Cut down on unnecessary copying of memory (use copy instead of clone? measure the effect)
     - Use smaller types instead of u64?
     - https://github.com/huonw/llvmint
       - has a simd instruction for 8 cttz at once!
@@ -39,5 +38,27 @@ TODO:
 SIMD crate
 [dependencies.simd]
 git = "https://github.com/huonw/simd"
+
+00001110 --> 3
+00010001
+--------
+00001111
+
+
+# - - - -
+- - - - -
+r - - - -
+r - - - -
+r - - - -
+
+# - - - -
+- r - - -
+- - r - -
+- - - r -
+- - - - #
+
+
+
+
 
 

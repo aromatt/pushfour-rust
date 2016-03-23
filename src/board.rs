@@ -95,6 +95,23 @@ fn score_row(mut row: u64) -> i32 {
     }
     i
 }
+
+#[inline(always)]
+// Sandwiches `row` with a 1 on each side of the populated section of `others`, simulating those
+// two moves
+fn score_row_aug(mut row: u64, others: u64) -> i32 {
+    if row == 0 { return 0; }
+    println!("incoming row: {:b}", row);
+    row = row | trailing_zeros(row).map(|z| 1 << z).unwrap_or(0);
+    row = row | leading_zeros(row).map(|z| 1 << z).unwrap_or(0);
+    let mut i = 1;
+    while i < 4 {
+        row = row & (row >> 1);
+        if row == 0 { break; }
+        i += 1;
+    }
+    i
+}
 #[inline(always)]
 fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
     let mut set = HashSet::new();
@@ -336,7 +353,7 @@ impl Board {
     }
 
     // Get horizontal moves, given the board masks.
-    // (call with both horizontal and vertical representations to get all moves)
+    // We must call with both orthogonal board representations to get all moves.
     fn get_axis_moves(&self, reds: &[u64], blues: &[u64],
                       rocks: &[u64], transpose: bool) -> Vec<Move> {
         let mut moves = Vec::new();
@@ -497,15 +514,15 @@ impl Board {
         };
         let mut my_score = 0;
         let mut their_score = 0;
-        for row in mine.0 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.1 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.2 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.3 { my_score = max(my_score, score_row(*row)); }
+        for row in mine.0 { my_score = max(my_score, score_row_aug(*row)); }
+        for row in mine.1 { my_score = max(my_score, score_row_aug(*row)); }
+        for row in mine.2 { my_score = max(my_score, score_row_aug(*row)); }
+        for row in mine.3 { my_score = max(my_score, score_row_aug(*row)); }
         my_score = my_score | ((my_score & 4) << 1);
-        for row in theirs.0 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.1 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.2 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.3 { their_score = max(their_score, score_row(*row)); }
+        for row in theirs.0 { their_score = max(their_score, score_row_aug(*row)); }
+        for row in theirs.1 { their_score = max(their_score, score_row_aug(*row)); }
+        for row in theirs.2 { their_score = max(their_score, score_row_aug(*row)); }
+        for row in theirs.3 { their_score = max(their_score, score_row_aug(*row)); }
         their_score = their_score | ((their_score & 4) << 1);
         my_score - their_score
     }

@@ -28,7 +28,11 @@ impl Game<Board, Move> for PushfourGame {
     }
 
     fn eval(&self, b: &Board, _: bool) -> i32 {
-        if self.player == Player::Red { b.score(Player::Red) } else { b.score(Player::Blue) }
+        if self.player == Player::Red {
+            b.score(Player::Red)
+        } else {
+            b.score(Player::Blue)
+        }
     }
 
     fn gameover(&self, b: &Board) -> bool {
