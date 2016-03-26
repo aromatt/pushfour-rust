@@ -6,6 +6,7 @@ TODO:
         player's max run is three--even though his are landlocked and therefore cannot contribute
         to a win for him.
   - RUN-TIME PERFORMANCE
+    - use of overlay abstraction adds a lot of extra time. is it the diag lookups?
     - Verify that correct asm instructions are being used
       - http://llvm.org/docs/LangRef.html#inline-assembler-expressions
       - Looking at assembly:

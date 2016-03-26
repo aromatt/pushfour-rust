@@ -5,10 +5,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::collections::HashSet;
 use self::core::hash::Hash;
-use self::core::cmp::{Eq, max};
-
-const BOARD_SIZE: usize = 8;
-const BOARD_DIAG_SIZE: usize = BOARD_SIZE * 2 - 1;
+use overlay::Overlay;
+use overlay::DiagLookup;
 
 const BLUE_CHAR: char = 'b';
 const RED_CHAR: char = 'r';
@@ -73,29 +71,6 @@ fn trailing_zeros(x: u64) -> Option<usize> {
 }
 
 #[inline(always)]
-fn is_row_win(mut row: u64) -> bool {
-    if row == 0 { return false; }
-    let mut i = 0;
-    while i < 3 {
-        row = row & (row >> 1);
-        if row == 0 { return false; }
-        i += 1;
-    }
-    true
-}
-
-#[inline(always)]
-fn score_row(mut row: u64) -> i32 {
-    if row == 0 { return 0; }
-    let mut i = 1;
-    while i < 4 {
-        row = row & (row >> 1);
-        if row == 0 { break; }
-        i += 1;
-    }
-    i
-}
-#[inline(always)]
 fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
     let mut set = HashSet::new();
     for m in vec.drain(..) { set.insert(m); }
@@ -156,38 +131,20 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Coord(usize, usize);
-
-fn rotate_cw(size: usize, row: usize, col: usize) -> (usize, usize) {
-    (col, size - row - 1)
-}
-
-#[derive(Clone, Copy)]
-pub struct Board {
+// Representation of a pushfour board.
+// It's implemented as a composition of Overlays, adding logic for getting and applying available
+// moves, and some other necessities for tracking the state of the game.
+#[derive(Clone)]
+pub struct Board<'a> {
     size: usize,
     turn: Player,
 
-    blues: [u64; BOARD_SIZE],
-    reds: [u64; BOARD_SIZE],
-    rocks: [u64; BOARD_SIZE],
-
-    blues_invert: [u64; BOARD_SIZE],
-    reds_invert: [u64; BOARD_SIZE],
-    rocks_invert: [u64; BOARD_SIZE],
-
-    pub diag_lookup: [[Coord; BOARD_SIZE]; BOARD_SIZE],
-    blues_diag: [u64; BOARD_DIAG_SIZE],
-    reds_diag: [u64; BOARD_DIAG_SIZE],
-    rocks_diag: [u64; BOARD_DIAG_SIZE],
-
-    pub diag_lookup_rot: [[Coord; BOARD_SIZE]; BOARD_SIZE],
-    blues_diag_rot: [u64; BOARD_DIAG_SIZE],
-    reds_diag_rot: [u64; BOARD_DIAG_SIZE],
-    rocks_diag_rot: [u64; BOARD_DIAG_SIZE],
+    blues: Overlay<'a>,
+    reds: Overlay<'a>,
+    rocks: Overlay<'a>,
 }
 
-impl fmt::Debug for Board {
+impl<'a> fmt::Debug for Board<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut grid = String::new();
         grid.push_str("\n+ ");
@@ -197,9 +154,9 @@ impl fmt::Debug for Board {
         let mut row = 0;
         while row < self.size {
             let mut col = 0;
-            let blue_row = self.blues[row];
-            let red_row = self.reds[row];
-            let rock_row = self.rocks[row];
+            let blue_row = self.blues.main[row];
+            let red_row = self.reds.main[row];
+            let rock_row = self.rocks.main[row];
             grid.push_str(&*format!("{} ", row));
             while col < self.size {
                 let mut val = '-';
@@ -221,36 +178,22 @@ impl fmt::Debug for Board {
     }
 }
 
-impl Board {
-    pub fn new(size: usize) -> Board {
-        let mut b = Board {
+impl<'a> Board<'a> {
+    pub fn new(size: usize, diag_lookup: &'a DiagLookup) -> Board<'a> {
+        let b = Overlay::new(size, &diag_lookup);
+        let rd = Overlay::new(size, &diag_lookup);
+        let rk = Overlay::new(size, &diag_lookup);
+        Board {
             turn: Player::Blue,
             size: size,
-
-            blues: [0; BOARD_SIZE],
-            reds: [0; BOARD_SIZE],
-            rocks: [0; BOARD_SIZE],
-
-            blues_invert: [0; BOARD_SIZE],
-            reds_invert: [0; BOARD_SIZE],
-            rocks_invert: [0; BOARD_SIZE],
-
-            diag_lookup: [[Coord(0, 0); BOARD_SIZE]; BOARD_SIZE],
-            blues_diag: [0; BOARD_DIAG_SIZE],
-            reds_diag: [0; BOARD_DIAG_SIZE],
-            rocks_diag: [0; BOARD_DIAG_SIZE],
-
-            diag_lookup_rot: [[Coord(0, 0); BOARD_SIZE]; BOARD_SIZE],
-            blues_diag_rot: [0; BOARD_DIAG_SIZE],
-            reds_diag_rot: [0; BOARD_DIAG_SIZE],
-            rocks_diag_rot: [0; BOARD_DIAG_SIZE],
-        };
-        b.init_diag_lookups();
-        b
+            blues: b,
+            reds: rd,
+            rocks: rk
+        }
     }
 
-    pub fn from_str(size: usize, s: &str) -> Board {
-        let mut b = Self::new(size);
+    pub fn from_str(size: usize, d: &'a DiagLookup, s: &str) -> Board<'a> {
+        let mut b = Self::new(size, &d);
         for (row, row_str) in s.lines().enumerate() {
             if row == 0 { continue; }
             for (col, c) in row_str.trim()[2..size * 2 + 1].replace(" ", "").chars().enumerate() {
@@ -273,70 +216,9 @@ impl Board {
         }
     }
 
-    /* Need two diagonal representations of the board, and a lookup tables.
-     * The lookup tables are used for setting bits in the representations.
-     * The representations are only used for detecting diagonal win states.
-     *
-     *       00            02
-     *     10  01        01  12
-     *   20  11  02    00  11  22   -- Representations
-     *     21  12        10  21
-     *       22            22
-     *
-     *    00 11 22      20 10 00
-     *    10 21 31      30 21 11    -- Lookup tables
-     *    20 30 40      40 31 22
-     *
-     *      (1)           (2)
-     *
-     *    Alternative lookup table instead of (2), which results in an inversion
-     *    of representation (1). This lookup table is obtained by flipping (1)'s
-     *    lookup table about its middle row:
-     *
-     *      20 30 40
-     *      10 21 31
-     *      00 11 22
-     */
-    fn init_diag_lookups(&mut self) {
-        let mut key_row_reset = 1;
-        let mut key_col_reset = 1;
-        let mut key_row = 0;
-        let mut key_col = 0;
-        let mut val_row = 0;
-        let mut val_col = 0;
-        let mut total = 0;
-        while total < self.size * self.size {
-
-            self.diag_lookup[key_row][key_col] = Coord(val_row, val_col);
-            let (key_row_rot, key_col_rot) = rotate_cw(self.size, key_row, key_col);
-            self.diag_lookup_rot[key_row_rot][key_col_rot] = Coord(val_row, val_col);
-
-            // Reset from top row to the left column
-            if key_row == 0 && key_row_reset < self.size {
-                key_row = key_row_reset;
-                key_col = 0;
-                key_row_reset += 1;
-                val_col = 0;
-                val_row += 1;
-            // Reset from the right column to the bottom row
-            } else if key_col == self.size - 1 && key_col_reset < self.size {
-                key_col = key_col_reset;
-                key_row = self.size - 1;
-                key_col_reset += 1;
-                val_col = 0;
-                val_row += 1;
-            // Normal traversal up and to the right
-            } else {
-                key_row -= 1;
-                key_col += 1;
-                val_col += 1;
-            }
-            total += 1;
-        }
-    }
 
     // Get horizontal moves, given the board masks.
-    // (call with both horizontal and vertical representations to get all moves)
+    // We must call with both orthogonal board representations to get all moves.
     fn get_axis_moves(&self, reds: &[u64], blues: &[u64],
                       rocks: &[u64], transpose: bool) -> Vec<Move> {
         let mut moves = Vec::new();
@@ -372,11 +254,12 @@ impl Board {
 
     // Get all moves, allowing duplicates
     pub fn get_moves_dirty(&self) -> Vec<Move> {
-        let mut moves = self.get_axis_moves(&self.blues, &self.reds, &self.rocks, false);
-        let mut ortho_moves = self.get_axis_moves(&self.blues_invert, &self.reds_invert,
-                                                  &self.rocks_invert, true);
-        moves.append(&mut ortho_moves);
-        moves
+        let mut row_moves = self.get_axis_moves(&self.blues.main, &self.reds.main,
+                                                &self.rocks.main, false);
+        let mut col_moves = self.get_axis_moves(&self.blues.invert, &self.reds.invert,
+                                                &self.rocks.invert, true);
+        row_moves.append(&mut col_moves);
+        row_moves
     }
 
     // Get all moves, in a HashSet
@@ -394,126 +277,48 @@ impl Board {
     }
 
     pub fn set(&mut self, row: usize, col: usize, val: Option<Piece>) {
-        let (row_invert, col_invert) = (col, row);
-        let Coord(drow, dcol) = self.diag_lookup[row][col];
-        let Coord(drow_rot, dcol_rot) = self.diag_lookup_rot[row][col];
+        self.blues.clear(row, col);
+        self.reds.clear(row, col);
+        self.rocks.clear(row, col);
         if let Some(color) = val {
-            match color {
-                Piece::Blue => {
-                    // Set blues
-                    self.blues[row] |= 1 << col;
-                    self.blues_invert[row_invert] |= 1 << col_invert;
-                    self.blues_diag[drow] |= 1 << dcol;
-                    self.blues_diag_rot[drow_rot] |= 1 << dcol_rot;
-
-                    // Clear reds
-                    self.reds[row] &= !0 ^ (1 << col);
-                    self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
-                    self.reds_diag[drow] &= !0 ^ (1 << dcol);
-                    self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-
-                    // Clear rocks
-                    self.rocks[row] &= !0 ^ (1 << col);
-                    self.rocks_invert[row_invert] &= !0 ^ (1 << col_invert);
-                },
-                Piece::Red => {
-                    // Set reds
-                    self.reds[row] |= 1 << col;
-                    self.reds_invert[row_invert] |= 1 << col_invert;
-                    self.reds_diag[drow] |= 1 << dcol;
-                    self.reds_diag_rot[drow_rot] |= 1 << dcol_rot;
-
-                    // Clear blues
-                    self.blues[row] &= !0 ^ (1 << col);
-                    self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
-                    self.blues_diag[drow] &= !0 ^ (1 << dcol);
-                    self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-
-                    // Clear rocks
-                    self.rocks[row] &= !0 ^ (1 << col);
-                    self.rocks_invert[row_invert] &= !0 ^ (1 << col_invert);
-                },
-                Piece::Rock => {
-                    // Set rocks
-                    self.rocks[row] |= 1 << col;
-                    self.rocks_invert[row_invert] |= 1 << col_invert;
-
-                    // Clear blues
-                    self.blues[row] &= !0 ^ (1 << col);
-                    self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
-                    self.blues_diag[drow] &= !0 ^ (1 << dcol);
-                    self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-
-                    // Clear reds
-                    self.reds[row] &= !0 ^ (1 << col);
-                    self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
-                    self.reds_diag[drow] &= !0 ^ (1 << dcol);
-                    self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-                }
-            }
-        } else {
-            self.reds[row] &= !0 ^ (1 << col);
-            self.reds_invert[row_invert] &= !0 ^ (1 << col_invert);
-            self.blues[row] &= !0 ^ (1 << col);
-            self.blues_invert[row_invert] &= !0 ^ (1 << col_invert);
-            self.reds_diag[drow] &= !0 ^ (1 << dcol);
-            self.reds_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-            self.blues_diag[drow] &= !0 ^ (1 << dcol);
-            self.blues_diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
-            self.rocks[row] &= !0 ^ (1 << col);
-            self.rocks_invert[row_invert] &= !1 ^ (1 << col_invert);
+            let mut overlay_to_set = match color {
+                Piece::Blue => &mut self.blues,
+                Piece::Red => &mut self.reds,
+                Piece::Rock => &mut self.rocks,
+            };
+            overlay_to_set.set(row, col);
         }
     }
 
     #[allow(dead_code)]
     pub fn get(&self, row: usize, col: usize) -> Option<Piece> {
-        if self.blues[row] & (1 << col) != 0 { return Some(Piece::Blue) };
-        if self.reds[row] & (1 << col) != 0 { return Some(Piece::Red) };
-        if self.rocks[row] & (1 << col) != 0 { return Some(Piece::Rock) };
+        if self.blues.get(row, col) { return Some(Piece::Blue) };
+        if self.reds.get(row, col) { return Some(Piece::Red) };
+        if self.rocks.get(row, col) { return Some(Piece::Rock) };
         None
     }
 
     // Returns whether or not current Board state is a win for `player`
     pub fn is_win_state(&self, player: Player) -> bool {
-        let (main, invert, diag, diag_rot) = match player {
-            Player::Red => (&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
-            Player::Blue => (&self.blues, &self.blues_invert, &self.blues_diag, &self.blues_diag_rot)
-        };
-        for row in main { if is_row_win(*row) { return true; } } // TODO print the win state in a color
-        for row in invert { if is_row_win(*row) { return true; } }
-        for row in diag { if is_row_win(*row) { return true; } }
-        for row in diag_rot { if is_row_win(*row) { return true; } }
-        false
+        let overlay = match player { Player::Red => &self.reds, Player::Blue => &self.blues };
+        overlay.is_win_state()
     }
 
     // Returns difference in lengths of each player's longest contiguous run. If a player is in a
     // win state, add 8 extra points to their existing 4.
     pub fn score(&self, player: Player) -> i32 {
-        let (reds, blues) = ((&self.reds, &self.reds_invert, &self.reds_diag, &self.reds_diag_rot),
-                             (&self.blues, &self.blues_invert, &self.blues_diag, &self.blues_diag_rot));
         let (mine, theirs) = match player {
-            Player::Red => (reds, blues),
-            Player::Blue => (blues, reds),
+            Player::Red => (&self.reds, &self.blues),
+            Player::Blue => (&self.blues, &self.reds),
         };
-        let mut my_score = 0;
-        let mut their_score = 0;
-        for row in mine.0 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.1 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.2 { my_score = max(my_score, score_row(*row)); }
-        for row in mine.3 { my_score = max(my_score, score_row(*row)); }
-        my_score = my_score | ((my_score & 4) << 1);
-        for row in theirs.0 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.1 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.2 { their_score = max(their_score, score_row(*row)); }
-        for row in theirs.3 { their_score = max(their_score, score_row(*row)); }
-        their_score = their_score | ((their_score & 4) << 1);
-        my_score - their_score
+        mine.score() - theirs.score()
     }
 }
 
 #[test]
 fn test_get_set() {
-    let mut b = Board::new(4);
+    let d = DiagLookup::new(4);
+    let mut b = Board::new(4, &d);
 
     assert_eq!(None, b.get(1, 0));
 
@@ -534,7 +339,8 @@ fn test_get_set() {
 
 #[test]
 fn test_get_set_row() {
-    let mut b = Board::new(4);
+    let d = DiagLookup::new(4);
+    let mut b = Board::new(4, &d);
     b.set(0, 0, Some(Piece::Blue));
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
 
@@ -552,7 +358,8 @@ fn test_get_set_row() {
 
 #[test]
 fn test_clone() {
-    let mut b = Board::new(4);
+    let d = DiagLookup::new(4);
+    let mut b = Board::new(4, &d);
 
     assert_eq!(None, b.get(0, 0));
 
@@ -585,38 +392,9 @@ fn test_trailing_zeros() {
 }
 
 #[test]
-fn test_is_row_win() {
-    assert!(!is_row_win(0));
-    assert!(!is_row_win(1));
-    assert!(!is_row_win(0b11));
-    assert!(!is_row_win(0b111));
-    assert!(is_row_win(0b1111));
-    assert!(is_row_win(0b11110));
-    assert!(is_row_win(0xF000000000000000));
-    assert!(is_row_win(0xAA02F20011002345));
-    assert!(!is_row_win(0xAA55000011002345));
-    assert!(is_row_win(0x1E00000000000000));
-    assert!(!is_row_win(0xE000000000000000));
-}
-
-#[test]
-fn test_score_row() {
-    assert_eq!(0, score_row(0));
-    assert_eq!(1, score_row(1));
-    assert_eq!(2, score_row(0b11));
-    assert_eq!(3, score_row(0b111));
-    assert_eq!(4, score_row(0b1111));
-    assert_eq!(4, score_row(0b11110));
-    assert_eq!(4, score_row(0xF000000000000000));
-    assert_eq!(4, score_row(0xAA02F20011002345));
-    assert_eq!(2, score_row(0xAA55000011002345));
-    assert_eq!(4, score_row(0x1E00000000000000));
-    assert_eq!(3, score_row(0xE000000000000000));
-}
-
-#[test]
 fn test_get_moves_basic_2() {
-    let mut b = Board::new(2);
+    let d = DiagLookup::new(2);
+    let mut b = Board::new(2, &d);
     b.set(0, 0, Some(Piece::Blue)); // B B
     b.set(0, 1, Some(Piece::Blue)); // 0 0
     let mut expected = vec![
@@ -628,7 +406,8 @@ fn test_get_moves_basic_2() {
 
 #[test]
 fn test_get_moves_basic_3() {
-    let mut b = Board::new(3);
+    let d = DiagLookup::new(3);
+    let mut b = Board::new(3, &d);
     b.set(0, 0, Some(Piece::Blue)); // B 0 0
     b.set(1, 1, Some(Piece::Blue)); // 0 B 0
     b.set(2, 2, Some(Piece::Blue)); // 0 0 B
@@ -643,7 +422,8 @@ fn test_get_moves_basic_3() {
 
 #[test]
 fn test_get_moves_empty_2() {
-    let b = Board::new(2);
+    let d = DiagLookup::new(2);
+    let b = Board::new(2, &d);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },
@@ -655,7 +435,8 @@ fn test_get_moves_empty_2() {
 
 #[test]
 fn test_get_moves_empty_3() {
-    let b = Board::new(3);
+    let d = DiagLookup::new(3);
+    let b = Board::new(3, &d);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },
@@ -676,7 +457,8 @@ fn test_board_from_str() {
              1 r - - #
              2 - - - b
              3 - - - -";
-    let b = Board::from_str(4, s);
+    let d = DiagLookup::new(4);
+    let b = Board::from_str(4, &d, s);
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
     assert_eq!(Some(Piece::Red), b.get(1, 0));
     assert_eq!(Some(Piece::Rock), b.get(1, 3));
@@ -691,7 +473,8 @@ fn test_score_blank() {
              2 - - - - -
              3 - - - - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -703,7 +486,8 @@ fn test_score_even_1() {
              2 - - r - -
              3 - - - - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -715,7 +499,8 @@ fn test_score_even_2() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -727,7 +512,8 @@ fn test_score_even_3() {
              2 - - r - -
              3 - - r r -
              4 - - - - r";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -739,7 +525,8 @@ fn test_score_adv_1() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 1);
 }
 
@@ -751,7 +538,8 @@ fn test_score_win() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let d = DiagLookup::new(5);
+    let b = Board::from_str(5, &d, s);
     assert_eq!(b.score(Player::Blue), 10);
 }
 
@@ -766,9 +554,7 @@ fn test_score_lose() {
              5 - - - b b - - r
              6 - - - - - r - r
              7 - - - - - r r b";
-    let b = Board::from_str(8, s);
+    let d = DiagLookup::new(8);
+    let b = Board::from_str(8, &d, s);
     assert_eq!(b.score(Player::Red), -9);
 }
-
-// TODO test
-//   - win states (don't forget diag)

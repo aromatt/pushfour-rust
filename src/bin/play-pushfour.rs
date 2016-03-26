@@ -5,6 +5,7 @@ extern crate minimax;
 
 use minimax::{Minimax, Game};
 use pushfour::PushfourGame;
+use pushfour::overlay::*;
 use pushfour::board::*;
 
 static BOARD_SIZE: usize = 8;
@@ -13,7 +14,8 @@ static DEPTH: i32 = 7;
 // Clean up player... I don't think Board needs it
 fn main() {
     let g = PushfourGame::new(Player::Red);
-    let mut b = Board::new(BOARD_SIZE);
+    let d = DiagLookup::new(BOARD_SIZE);
+    let mut b = Board::new(BOARD_SIZE, &d);
     println!("New pushfour game. Difficulty: {}", DEPTH);
     b.set(1, 3, Some(Piece::Rock));
     b.set(3, 1, Some(Piece::Rock));

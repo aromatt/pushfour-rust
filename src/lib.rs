@@ -5,6 +5,7 @@
 
 extern crate minimax;
 
+pub mod overlay;
 pub mod board;
 
 use self::minimax::Game;
@@ -22,7 +23,7 @@ impl PushfourGame {
     }
 }
 
-impl Game<Board, Move> for PushfourGame {
+impl<'a> Game<Board<'a>, Move> for PushfourGame {
     fn get_moves(&self, root: &Board) -> Vec<Move> {
         root.get_moves()
     }
@@ -35,7 +36,7 @@ impl Game<Board, Move> for PushfourGame {
         b.is_win_state(Player::Blue) || b.is_win_state(Player::Red)
     }
 
-    fn apply(&self, b: &Board, m: Move) -> Board {
+    fn apply(&self, b: &Board<'a>, m: Move) -> Board<'a> {
         let mut cloned = b.clone();
         cloned.set_move(m);
         cloned.next_turn();
