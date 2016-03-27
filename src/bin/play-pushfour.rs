@@ -2,22 +2,34 @@ use std::io;
 
 extern crate pushfour;
 extern crate minimax;
+extern crate rand;
 
 use minimax::{Minimax, Game};
 use pushfour::PushfourGame;
 use pushfour::board::*;
 use pushfour::util::*;
+use rand::Rng;
 
 static DEPTH: i32 = 7;
+static NUM_ROCKS: u32 = 3;
 
 // Clean up player... I don't think Board needs it
 fn main() {
     let g = PushfourGame::new(Player::Red);
     let mut b = Board::new(BOARD_SIZE);
     println!("New pushfour game. Difficulty: {}", DEPTH);
-    b.set(1, 3, Some(Piece::Rock));
-    b.set(3, 1, Some(Piece::Rock));
-    b.set(4, 4, Some(Piece::Rock));
+    let mut rng = rand::thread_rng();
+    let mut rcnt = 0;
+    loop {
+        let x = (rng.gen::<usize>() % BOARD_SIZE) as usize;
+        let y = (rng.gen::<usize>() % BOARD_SIZE) as usize;
+        if b.get(x, y).is_none() {
+            b.set(x, y, Some(Piece::Rock));
+            rcnt += 1;
+            if rcnt == NUM_ROCKS { break; }
+        }
+    }
+
     println!("Board state: {:?}", b);
 
     loop {
