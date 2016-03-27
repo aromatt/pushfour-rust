@@ -46,22 +46,20 @@ impl Overlay {
 
     pub fn set(&mut self, row: usize, col: usize) {
         let (row_invert, col_invert) = (col, row);
-        let Coord(drow, dcol) = diag_lookup::lookup_main(self.size, row, col);
-        let Coord(drow_rot, dcol_rot) = diag_lookup::lookup_rot(self.size, row, col);
         self.main[row] |= 1 << col;
         self.invert[row_invert] |= 1 << col_invert;
-        self.diag[drow] |= 1 << dcol;
-        self.diag_rot[drow_rot] |= 1 << dcol_rot;
+        let (diag_coord, diag_rot_coord) = diag_lookup::lookup(self.size, row, col);
+        self.diag[diag_coord.0] |= 1 << diag_coord.1;
+        self.diag_rot[diag_rot_coord.0] |= 1 << diag_rot_coord.1;
     }
 
     pub fn clear(&mut self, row: usize, col: usize) {
         let (row_invert, col_invert) = (col, row);
-        let Coord(drow, dcol) = diag_lookup::lookup_main(self.size, row, col);
-        let Coord(drow_rot, dcol_rot) = diag_lookup::lookup_rot(self.size, row, col);
         self.main[row] &= !0 ^ (1 << col);
         self.invert[row_invert] &= !0 ^ (1 << col_invert);
-        self.diag[drow] &= !0 ^ (1 << dcol);
-        self.diag_rot[drow_rot] &= !0 ^ (1 << dcol_rot);
+        let (diag_coord, diag_rot_coord) = diag_lookup::lookup(self.size, row, col);
+        self.diag[diag_coord.0] &= !0 ^ (1 << diag_coord.1);
+        self.diag_rot[diag_rot_coord.0] &= !0 ^ (1 << diag_rot_coord.1);
     }
 
     pub fn get(&self, row: usize, col: usize) -> bool {

@@ -7,13 +7,14 @@ struct DiagLookup {
 }
 
 impl DiagLookup {
-    /* Need two diagonal representations of the board, and a lookup tables.
-     * The lookup tables are used for setting bits in the representations.
-     * The representations are only used for detecting diagonal win states.
+    /* This struct contains lookup tables for translating regular board coordinates to
+     * coordinates in two diagonal rotations of the board ('main' and 'rot').
+     * The diagonal representations are only used for detecting diagonal win states.
+     * The lookup tables are only used for *setting* bits in the diagonal representations.
      *
      *       00            02
      *     10  01        01  12
-     *   20  11  02    00  11  22   -- Representations
+     *   20  11  02    00  11  22   -- Representations ('00' means 'top left on real board')
      *     21  12        10  21
      *       22            22
      *
@@ -23,7 +24,7 @@ impl DiagLookup {
      *
      *      (1)           (2)
      *
-     *    Alternative lookup table instead of (2), which results in an inversion
+     *    TODO: Alternative lookup table instead of (2), which results in an inversion
      *    of representation (1). This lookup table is obtained by flipping (1)'s
      *    lookup table about its middle row:
      *
@@ -87,10 +88,6 @@ lazy_static! {
     ];
 }
 
-pub fn lookup_main(size: usize, row: usize, col: usize) -> Coord {
-    (*TABLES)[size - 2].main[row][col]
-}
-
-pub fn lookup_rot(size: usize, row: usize, col: usize) -> Coord {
-    (*TABLES)[size - 2].rot[row][col]
+pub fn lookup(size: usize, row: usize, col: usize) -> (Coord, Coord) {
+    ((*TABLES)[size - 2].main[row][col],(*TABLES)[size - 2].rot[row][col])
 }
