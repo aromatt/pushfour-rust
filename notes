@@ -1,19 +1,12 @@
 TODO:
   - STRATEGY
-    - take winnability into account for score, not just longest contiguous runs
-      - jubpub_1_sizee_8_depth_7.txt
-        - thinks any move is as good as any other because score is 0 no matter what, because each
-        player's max run is three--even though his are landlocked and therefore cannot contribute
-        to a win for him.
   - RUN-TIME PERFORMANCE
-    - use of overlay abstraction adds a lot of extra time. is it the diag lookups?
     - Verify that correct asm instructions are being used
       - http://llvm.org/docs/LangRef.html#inline-assembler-expressions
       - Looking at assembly:
         http://huonw.github.io/blog/2015/08/simd-in-rust/
         $ rustc -L ../rust-minimax/target/debug/ --crate-type=lib -g -o board src/board.rs
         $ objdump -d board
-    - Add AB-pruning
     - Do some profiling
     - Cut down on unnecessary copying of memory (use copy instead of clone? measure the effect)
     - Use smaller types instead of u64?
@@ -22,23 +15,9 @@ TODO:
       - http://huonw.github.io/llvmint/llvmint/fn.cttz_v8i16.html
   - CODE CLEAN UP
     - add init board with random rocks
-    - create abstraction for a board-piecetype pairing that keeps track of its
-      own 4 rotations
-      - so that I don't have to type "red" "blue" and "rock" so many times
-    - Create an abstraction that handles coordinate calculations/lookups for
-      indexing into each board-piecetype, so that each board-piecetype doesn't
-      have to redo them.
-      - Would be created and passed to each board-piecetype in `set`
-          Indexer {
-            plain: Coord,
-            invert: Coord,
-            diag: Coord,
-            diag_rotate: Coord,
-          }
     -
 
 SIMD crate
 [dependencies.simd]
 git = "https://github.com/huonw/simd"
-
 

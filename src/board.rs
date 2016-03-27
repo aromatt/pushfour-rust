@@ -1,83 +1,7 @@
-extern crate rustc_data_structures;
-extern crate core;
-
 use std::fmt;
 use std::collections::HashSet;
-use self::core::hash::Hash;
 use overlay::Overlay;
 use util::*;
-
-/*
-fn add(a: i32, b: i32) -> i32 {
-    let c: i32;
-    unsafe {
-        asm!("add $2, $0"
-             : "=r"(c)
-             : "0"(a), "r"(b)
-            );
-    }
-    c
-}
-*/
-
-//http://llvm.org/docs/LangRef.html#inline-asm-modifiers
-//https://doc.rust-lang.org/book/inline-assembly.html
-/*
-fn bsf(a: u32) -> u64 {
-    let i: u64;
-    unsafe {
-        asm!("bsf $0"
-             : "=r"(i)
-             : "r"(a)
-             :
-             : "intel"
-            );
-    }
-    i
-}
-*/
-
-extern "rust-intrinsic" {
-    #[allow(private_no_mangle_fns)]
-    #[no_mangle]
-    fn ctlz<T>(x: T) -> T;
-
-    #[allow(private_no_mangle_fns)]
-    #[no_mangle]
-    fn cttz<T>(x: T) -> T;
-}
-
-#[allow(private_no_mangle_fns)]
-#[no_mangle]
-fn leading_zeros(x: u64) -> Option<usize> {
-    unsafe {
-        let i = ctlz(x) as usize;
-        if i > 0 { Some(i - 1) } else { None }
-    }
-}
-
-#[allow(private_no_mangle_fns)]
-#[no_mangle]
-fn trailing_zeros(x: u64) -> Option<usize> {
-    unsafe {
-        let i = cttz(x) as usize;
-        if i > 0 { Some(i - 1) } else { None }
-    }
-}
-
-#[inline(always)]
-fn vec_to_set<T: Eq + Hash>(vec: &mut Vec<T>) -> HashSet<T> {
-    let mut set = HashSet::new();
-    for m in vec.drain(..) { set.insert(m); }
-    set
-}
-
-#[inline(always)]
-fn set_to_vec<T: Eq + Hash>(set: &mut HashSet<T>) -> Vec<T> {
-    let mut vec = Vec::new();
-    for m in set.drain() { vec.push(m); }
-    vec
-}
 
 // Representation of a pushfour board.
 // It's implemented as a composition of Overlays, adding logic for getting and applying available
@@ -160,7 +84,6 @@ impl Board {
         }
     }
 
-
     // Get horizontal moves, given the board masks.
     // We must call with both orthogonal board representations to get all moves.
     fn get_axis_moves(&self, reds: &[u64], blues: &[u64],
@@ -169,7 +92,7 @@ impl Board {
         let mut row = 0;
         while row < self.size {
             let combined = blues[row] | reds[row] | rocks[row];
-            if let Some(zeros) = leading_zeros(combined) {
+            if let Some(zeros) = leading_zero_idx(combined) {
                 let col = 63 - zeros;
                 if col < self.size {
                     moves.push(Move {
@@ -179,7 +102,7 @@ impl Board {
                     });
                 }
             }
-            if let Some(zeros) = trailing_zeros(combined) {
+            if let Some(zeros) = trailing_zero_idx(combined) {
                 let col = if zeros > self.size { Some(self.size - 1) }
                           else if zeros < self.size { Some(zeros) }
                           else { None };
@@ -257,6 +180,33 @@ impl Board {
         };
         mine.score() - theirs.score()
     }
+
+    // Returns an Overlay that contains all currently-populated coordinates.
+    // TODO pretty inefficient. Merging Overlays is slow because it has to fill in
+    // the diagonals; can't just OR things together. This would be faster if we did
+    // it by ORing things together, then filled in the diagonals after.
+    pub fn populated(&self) -> Overlay {
+        let mut populated = self.rocks.clone();
+        populated.merge(&self.blues);
+        populated.merge(&self.reds);
+        populated
+    }
+
+    // Returns an Overlay that contains all reachable (unpopulated) coordinates.
+    pub fn reachable(&self) -> Overlay {
+        self.populated().reachable()
+    }
+
+    // Like score(), but considers reachability of wins. For a segment to count, there needs to be
+    // a reachable win containing that segment.
+    pub fn score_reachable(&self, player: Player) -> i32 {
+        let (mine, theirs) = match player {
+            Player::Red => (&self.reds, &self.blues),
+            Player::Blue => (&self.blues, &self.reds),
+        };
+        let r = self.reachable();
+        mine.score_with_mask(&r) - theirs.score_with_mask(&r)
+    }
 }
 
 #[test]
@@ -313,23 +263,6 @@ fn test_clone() {
     // Change c and makes sure b is unchanged
     c.set(0, 0, Some(Piece::Red));
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
-}
-
-#[test]
-fn test_leading_zeros() {
-    assert_eq!(Some(63), leading_zeros(0));
-    assert_eq!(Some(62), leading_zeros(1));
-    assert_eq!(None, leading_zeros(!0));
-    assert_eq!(None, leading_zeros(0x8000000000000000));
-    assert_eq!(Some(0), leading_zeros(0x6000000000000000));
-}
-
-#[test]
-fn test_trailing_zeros() {
-    assert_eq!(Some(63), trailing_zeros(0));
-    assert_eq!(None, trailing_zeros(1));
-    assert_eq!(None, trailing_zeros(!0));
-    assert_eq!(Some(0), trailing_zeros(2));
 }
 
 #[test]
@@ -486,4 +419,52 @@ fn test_score_lose() {
              7 - - - - - r r b";
     let b = Board::from_str(8, s);
     assert_eq!(b.score(Player::Red), -9);
+}
+
+#[test]
+fn test_score_reachable_win() {
+    let s = "+ 0 1 2 3 4
+             0 - b b b b
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score_reachable(Player::Blue), 10);
+}
+
+#[test]
+fn test_score_reachable_basic() {
+    let s = "+ 0 1 2 3 4
+             0 - - b b b
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score_reachable(Player::Blue), 1);
+}
+
+#[test]
+fn test_score_reachable_landlock() {
+    let s = "+ 0 1 2 3 4
+             0 - r b b b
+             1 - - - # -
+             2 - - r - -
+             3 - - r - -
+             4 - - - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score_reachable(Player::Blue), -1);
+}
+
+#[test]
+fn test_score_reachable_unreachable() {
+    let s = "+ 0 1 2 3 4
+             0 - r - # -
+             1 r - b b -
+             2 - - r - -
+             3 - - r - -
+             4 - r - - -";
+    let b = Board::from_str(5, s);
+    assert_eq!(b.score_reachable(Player::Blue), -1);
 }
