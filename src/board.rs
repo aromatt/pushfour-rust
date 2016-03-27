@@ -2,15 +2,10 @@ extern crate rustc_data_structures;
 extern crate core;
 
 use std::fmt;
-use std::fmt::Display;
 use std::collections::HashSet;
 use self::core::hash::Hash;
 use overlay::Overlay;
-use overlay::DiagLookup;
-
-const BLUE_CHAR: char = 'b';
-const RED_CHAR: char = 'r';
-const ROCK_CHAR: char = '#';
+use util::*;
 
 /*
 fn add(a: i32, b: i32) -> i32 {
@@ -84,67 +79,19 @@ fn set_to_vec<T: Eq + Hash>(set: &mut HashSet<T>) -> Vec<T> {
     vec
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub enum Piece {
-    Red,
-    Blue,
-    Rock
-}
-
-impl Display for Piece {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Piece {:?}", self)
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
-pub enum Player {
-    Red,
-    Blue
-}
-
-impl Display for Player {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Player {:?}", self)
-    }
-}
-
-impl Player {
-    fn to_piece(&self) -> Piece {
-        match *self {
-            Player::Red => Piece::Red,
-            Player::Blue => Piece::Blue,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
-pub struct Move {
-    pub row: usize,
-    pub col: usize,
-    pub player: Player
-}
-
-impl fmt::Display for Move {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Move ({}, {}, {})", self.row, self.col, self.player)
-    }
-}
-
 // Representation of a pushfour board.
 // It's implemented as a composition of Overlays, adding logic for getting and applying available
 // moves, and some other necessities for tracking the state of the game.
 #[derive(Clone)]
-pub struct Board<'a> {
+pub struct Board {
     size: usize,
     turn: Player,
-
-    blues: Overlay<'a>,
-    reds: Overlay<'a>,
-    rocks: Overlay<'a>,
+    blues: Overlay,
+    reds: Overlay,
+    rocks: Overlay,
 }
 
-impl<'a> fmt::Debug for Board<'a> {
+impl fmt::Debug for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut grid = String::new();
         grid.push_str("\n+ ");
@@ -178,22 +125,19 @@ impl<'a> fmt::Debug for Board<'a> {
     }
 }
 
-impl<'a> Board<'a> {
-    pub fn new(size: usize, diag_lookup: &'a DiagLookup) -> Board<'a> {
-        let b = Overlay::new(size, &diag_lookup);
-        let rd = Overlay::new(size, &diag_lookup);
-        let rk = Overlay::new(size, &diag_lookup);
+impl Board {
+    pub fn new(size: usize) -> Board {
         Board {
             turn: Player::Blue,
             size: size,
-            blues: b,
-            reds: rd,
-            rocks: rk
+            blues: Overlay::new(size),
+            reds: Overlay::new(size),
+            rocks: Overlay::new(size)
         }
     }
 
-    pub fn from_str(size: usize, d: &'a DiagLookup, s: &str) -> Board<'a> {
-        let mut b = Self::new(size, &d);
+    pub fn from_str(size: usize, s: &str) -> Board {
+        let mut b = Self::new(size);
         for (row, row_str) in s.lines().enumerate() {
             if row == 0 { continue; }
             for (col, c) in row_str.trim()[2..size * 2 + 1].replace(" ", "").chars().enumerate() {
@@ -317,8 +261,7 @@ impl<'a> Board<'a> {
 
 #[test]
 fn test_get_set() {
-    let d = DiagLookup::new(4);
-    let mut b = Board::new(4, &d);
+    let mut b = Board::new(4);
 
     assert_eq!(None, b.get(1, 0));
 
@@ -339,8 +282,7 @@ fn test_get_set() {
 
 #[test]
 fn test_get_set_row() {
-    let d = DiagLookup::new(4);
-    let mut b = Board::new(4, &d);
+    let mut b = Board::new(4);
     b.set(0, 0, Some(Piece::Blue));
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
 
@@ -358,8 +300,7 @@ fn test_get_set_row() {
 
 #[test]
 fn test_clone() {
-    let d = DiagLookup::new(4);
-    let mut b = Board::new(4, &d);
+    let mut b = Board::new(4);
 
     assert_eq!(None, b.get(0, 0));
 
@@ -393,8 +334,7 @@ fn test_trailing_zeros() {
 
 #[test]
 fn test_get_moves_basic_2() {
-    let d = DiagLookup::new(2);
-    let mut b = Board::new(2, &d);
+    let mut b = Board::new(2);
     b.set(0, 0, Some(Piece::Blue)); // B B
     b.set(0, 1, Some(Piece::Blue)); // 0 0
     let mut expected = vec![
@@ -406,8 +346,7 @@ fn test_get_moves_basic_2() {
 
 #[test]
 fn test_get_moves_basic_3() {
-    let d = DiagLookup::new(3);
-    let mut b = Board::new(3, &d);
+    let mut b = Board::new(3);
     b.set(0, 0, Some(Piece::Blue)); // B 0 0
     b.set(1, 1, Some(Piece::Blue)); // 0 B 0
     b.set(2, 2, Some(Piece::Blue)); // 0 0 B
@@ -422,8 +361,7 @@ fn test_get_moves_basic_3() {
 
 #[test]
 fn test_get_moves_empty_2() {
-    let d = DiagLookup::new(2);
-    let b = Board::new(2, &d);
+    let b = Board::new(2);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },
@@ -435,8 +373,7 @@ fn test_get_moves_empty_2() {
 
 #[test]
 fn test_get_moves_empty_3() {
-    let d = DiagLookup::new(3);
-    let b = Board::new(3, &d);
+    let b = Board::new(3);
     let mut expected = vec![
         Move { row: 0, col: 0, player: Player::Blue },
         Move { row: 0, col: 1, player: Player::Blue },
@@ -457,8 +394,7 @@ fn test_board_from_str() {
              1 r - - #
              2 - - - b
              3 - - - -";
-    let d = DiagLookup::new(4);
-    let b = Board::from_str(4, &d, s);
+    let b = Board::from_str(4, s);
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
     assert_eq!(Some(Piece::Red), b.get(1, 0));
     assert_eq!(Some(Piece::Rock), b.get(1, 3));
@@ -473,8 +409,7 @@ fn test_score_blank() {
              2 - - - - -
              3 - - - - -
              4 - - - - -";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -486,8 +421,7 @@ fn test_score_even_1() {
              2 - - r - -
              3 - - - - -
              4 - - - - -";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -499,8 +433,7 @@ fn test_score_even_2() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -512,8 +445,7 @@ fn test_score_even_3() {
              2 - - r - -
              3 - - r r -
              4 - - - - r";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -525,8 +457,7 @@ fn test_score_adv_1() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 1);
 }
 
@@ -538,8 +469,7 @@ fn test_score_win() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let d = DiagLookup::new(5);
-    let b = Board::from_str(5, &d, s);
+    let b = Board::from_str(5, s);
     assert_eq!(b.score(Player::Blue), 10);
 }
 
@@ -554,7 +484,6 @@ fn test_score_lose() {
              5 - - - b b - - r
              6 - - - - - r - r
              7 - - - - - r r b";
-    let d = DiagLookup::new(8);
-    let b = Board::from_str(8, &d, s);
+    let b = Board::from_str(8, s);
     assert_eq!(b.score(Player::Red), -9);
 }

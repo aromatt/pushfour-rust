@@ -3,13 +3,19 @@
 #![feature(intrinsics)]
 #![feature(asm)]
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate minimax;
 
 pub mod overlay;
+pub mod diag_lookup;
 pub mod board;
+pub mod util;
 
 use self::minimax::Game;
 use board::*;
+use util::*;
 
 pub struct PushfourGame {
     player: Player,
@@ -23,7 +29,7 @@ impl PushfourGame {
     }
 }
 
-impl<'a> Game<Board<'a>, Move> for PushfourGame {
+impl Game<Board, Move> for PushfourGame {
     fn get_moves(&self, root: &Board) -> Vec<Move> {
         root.get_moves()
     }
@@ -36,7 +42,7 @@ impl<'a> Game<Board<'a>, Move> for PushfourGame {
         b.is_win_state(Player::Blue) || b.is_win_state(Player::Red)
     }
 
-    fn apply(&self, b: &Board<'a>, m: Move) -> Board<'a> {
+    fn apply(&self, b: &Board, m: Move) -> Board {
         let mut cloned = b.clone();
         cloned.set_move(m);
         cloned.next_turn();

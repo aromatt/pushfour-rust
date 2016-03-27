@@ -9,6 +9,7 @@ name = "pushfour"
 
 [dependencies]
 regex = "0.1"
+lazy_static = "0.1.*"
 
 [dependencies.minimax]
 git = "http://github.com/aromatt/rust-minimax"

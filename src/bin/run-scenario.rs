@@ -12,8 +12,8 @@ use std::io;
 use regex::Regex;
 use core::num;
 
-use pushfour::board::{Board, Player};
-use pushfour::overlay::*;
+use pushfour::util::*;
+use pushfour::board::Board;
 use pushfour::PushfourGame;
 use minimax::{Minimax, Game};
 
@@ -52,7 +52,7 @@ fn parse_scenario_path(path: &str) -> Result<(usize, i32), CliError> {
     Ok((size, depth))
 }
 
-fn load_scenario<'a>(size: usize, d: &'a DiagLookup, path: &str) -> Board<'a> {
+fn load_scenario(size: usize, path: &str) -> Board {
     let path = Path::new(path);
     let display = path.display();
     let mut f = match File::open(&path) {
@@ -65,14 +65,13 @@ fn load_scenario<'a>(size: usize, d: &'a DiagLookup, path: &str) -> Board<'a> {
                                                    Error::description(&why)),
         Ok(_) => {},
     }
-    Board::from_str(size, &d, &s)
+    Board::from_str(size, &s)
 }
 
 fn run_scenario(path: &str) {
     let (size, depth) = parse_scenario_path(path).unwrap();
     let g = PushfourGame::new(Player::Red);
-    let d = DiagLookup::new(size);
-    let mut b = load_scenario(size, &d, path);
+    let mut b = load_scenario(size, path);
     b.next_turn();
 
     println!("\n##### Scenario (depth: {}) #####{:?}", depth, b);
