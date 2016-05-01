@@ -84,15 +84,16 @@ fn run_scenario(path: &str, maybe_depth: Option<i32>) -> Result<bool, CliError> 
     println!("Current board score: {}", b.score(Player::Red));
     let mv = Minimax::best_move(depth, &g, &b);
     let b_next = g.apply(&b, mv);
-    println!("\nBest move:{:?}", b_next);
+    println!("\nBest move:\n{:?}{:?}", mv, b_next);
     println!("New board score: {}\n", b_next.score(Player::Red));
     Ok(true)
 }
 
-fn parse_args(args: &mut std::env::Args) -> Option<i32> {
-    let mut args = args.peekable();
-    args.next();
-    if !(if let Some(ref a) = args.peek() { a == &"-d" } else { false }) { return None };
+fn parse_opts(args: &mut core::iter::Peekable<std::env::Args>) -> Option<i32> {
+    match args.peek() {
+        Some(ref a) => if a != &"-d" { return None },
+        _ => return None
+    }
     args.next();
     if let Some(ref d) = args.next() {
         return d.parse::<i32>().ok();
@@ -109,8 +110,9 @@ where each FILE contains depth_N in its name, unless DEFAULT_DEPTH is provided."
 }
 
 fn main() {
-    let mut args = env::args();
-    let maybe_depth = parse_args(&mut args);
+    let mut args = env::args().peekable();
+    args.next();
+    let maybe_depth = parse_opts(&mut args);
     for a in args {
         if !run_scenario(&a, maybe_depth).is_ok() {
             print_usage();
