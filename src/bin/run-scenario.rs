@@ -8,6 +8,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::env;
 use std::io;
+use std::process;
 use regex::Regex;
 use core::num;
 
@@ -66,8 +67,15 @@ fn load_scenario(path: &str) -> Board {
     Board::from_str(&s)
 }
 
-fn run_scenario(path: &str) {
-    let depth = parse_scenario_path(path).unwrap();
+fn run_scenario(path: &str, maybe_depth: Option<i32>) -> Result<bool, CliError> {
+    let depth = match parse_scenario_path(path) {
+        Ok(d) => d,
+        Err(e) => {
+            if let Some(d) = maybe_depth { d } else {
+                return Err(e);
+            }
+        }
+    };
     let g = PushfourGame::new(Player::Red);
     let mut b = load_scenario(path);
     b.next_turn();
@@ -78,10 +86,35 @@ fn run_scenario(path: &str) {
     let b_next = g.apply(&b, mv);
     println!("\nBest move:{:?}", b_next);
     println!("New board score: {}\n", b_next.score(Player::Red));
+    Ok(true)
+}
+
+fn parse_args(args: &mut std::env::Args) -> Option<i32> {
+    let mut args = args.peekable();
+    args.next();
+    if !(if let Some(ref a) = args.peek() { a == &"-d" } else { false }) { return None };
+    args.next();
+    if let Some(ref d) = args.next() {
+        return d.parse::<i32>().ok();
+    }
+    None
+}
+
+fn print_usage() {
+    println!("Usage:
+
+    ./run-scenario [-d DEFAULT_DEPTH] FILE [FILE] ...
+
+where each FILE contains depth_N in its name, unless DEFAULT_DEPTH is provided.");
 }
 
 fn main() {
-    let mut args = env::args().peekable();
-    args.next();
-    for a in args { run_scenario(&a, ); }
+    let mut args = env::args();
+    let maybe_depth = parse_args(&mut args);
+    for a in args {
+        if !run_scenario(&a, maybe_depth).is_ok() {
+            print_usage();
+            process::exit(1);
+        }
+    }
 }

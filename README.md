@@ -34,3 +34,16 @@ There are game scenarios for debugging the bot's logic in `tests/scenarios/`. To
 
     # Run scenarios
     $ ./target/release/run-scenario tests/scenarios/*
+
+Each scenario has its test-case-specific minimax depth embedded in its filename as `depth_N`.
+
+You can specify a scenario file *without* this naming convention by adding `-d DEPTH` to the
+invocation:
+
+    $ ./target/release/run-scenario -d 5 some_scenario.txt
+
+This can also be used to run one of the scenarios in `tests/scenarios/` with a different depth
+than its filename dictates:
+
+    # Run scenario foo_depth_8.txt at depth 5 instead of depth 8
+    $ ./target/release/run-scenario -d 5 <(cat tests/scenarios/foo_depth_8.txt)
