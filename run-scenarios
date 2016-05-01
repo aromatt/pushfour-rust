@@ -2,7 +2,7 @@
 
 # USAGE:
 #
-#    ./baseline [-b] [TEST_CASES]
+#    ./run-scenarios [-b] [TEST_CASES]
 #
 #  -b: rewrite baselines
 #
@@ -24,9 +24,7 @@ else
   files=$(find $@ | grep -E '.txt$')
 fi
 
-if [[ ! -f $run ]]; then
-  cargo build --release
-fi
+cargo build --release
 
 exit_code=0
 

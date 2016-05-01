@@ -44,15 +44,14 @@ impl From<num::ParseIntError> for CliError {
     }
 }
 
-fn parse_scenario_path(path: &str) -> Result<(usize, i32), CliError> {
-    let re = Regex::new(r"size_(\d*)_depth_(\d*)\.txt$").unwrap();
+fn parse_scenario_path(path: &str) -> Result<i32, CliError> {
+    let re = Regex::new(r"depth_(\d*)\.txt$").unwrap();
     let m = try!(re.captures_iter(path).nth(0).ok_or(CliError::InvalidName));
-    let size = try!(m.at(1).unwrap().parse::<usize>());
-    let depth = try!(m.at(2).unwrap().parse::<i32>());
-    Ok((size, depth))
+    let depth = try!(m.at(1).unwrap().parse::<i32>());
+    Ok(depth)
 }
 
-fn load_scenario(size: usize, path: &str) -> Board {
+fn load_scenario(path: &str) -> Board {
     let path = Path::new(path);
     let display = path.display();
     let mut f = match File::open(&path) {
@@ -65,13 +64,13 @@ fn load_scenario(size: usize, path: &str) -> Board {
                                                    Error::description(&why)),
         Ok(_) => {},
     }
-    Board::from_str(size, &s)
+    Board::from_str(&s)
 }
 
 fn run_scenario(path: &str) {
-    let (size, depth) = parse_scenario_path(path).unwrap();
+    let depth = parse_scenario_path(path).unwrap();
     let g = PushfourGame::new(Player::Red);
-    let mut b = load_scenario(size, path);
+    let mut b = load_scenario(path);
     b.next_turn();
 
     println!("\n##### Scenario (depth: {}) #####{:?}", depth, b);

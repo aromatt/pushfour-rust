@@ -60,7 +60,8 @@ impl Board {
         }
     }
 
-    pub fn from_str(size: usize, s: &str) -> Board {
+    pub fn from_str(s: &str) -> Board {
+        let size = s.lines().count() - 1;
         let mut b = Self::new(size);
         for (row, row_str) in s.lines().enumerate() {
             if row == 0 { continue; }
@@ -327,7 +328,7 @@ fn test_board_from_str() {
              1 r - - #
              2 - - - b
              3 - - - -";
-    let b = Board::from_str(4, s);
+    let b = Board::from_str(s);
     assert_eq!(Some(Piece::Blue), b.get(0, 0));
     assert_eq!(Some(Piece::Red), b.get(1, 0));
     assert_eq!(Some(Piece::Rock), b.get(1, 3));
@@ -342,7 +343,7 @@ fn test_score_blank() {
              2 - - - - -
              3 - - - - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -354,7 +355,7 @@ fn test_score_even_1() {
              2 - - r - -
              3 - - - - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -366,7 +367,7 @@ fn test_score_even_2() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -378,7 +379,7 @@ fn test_score_even_3() {
              2 - - r - -
              3 - - r r -
              4 - - - - r";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 0);
 }
 
@@ -390,7 +391,7 @@ fn test_score_adv_1() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 1);
 }
 
@@ -402,7 +403,7 @@ fn test_score_win() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Blue), 10);
 }
 
@@ -417,7 +418,7 @@ fn test_score_lose() {
              5 - - - b b - - r
              6 - - - - - r - r
              7 - - - - - r r b";
-    let b = Board::from_str(8, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score(Player::Red), -9);
 }
 
@@ -429,7 +430,7 @@ fn test_score_reachable_win() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score_reachable(Player::Blue), 10);
 }
 
@@ -441,7 +442,7 @@ fn test_score_reachable_basic() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score_reachable(Player::Blue), 1);
 }
 
@@ -453,7 +454,7 @@ fn test_score_reachable_landlock() {
              2 - - r - -
              3 - - r - -
              4 - - - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score_reachable(Player::Blue), -1);
 }
 
@@ -465,6 +466,6 @@ fn test_score_reachable_unreachable() {
              2 - - r - -
              3 - - r - -
              4 - r - - -";
-    let b = Board::from_str(5, s);
+    let b = Board::from_str(s);
     assert_eq!(b.score_reachable(Player::Blue), -1);
 }

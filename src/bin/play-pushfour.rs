@@ -11,7 +11,7 @@ use pushfour::util::*;
 use rand::Rng;
 
 static DEPTH: i32 = 7;
-static NUM_ROCKS: u32 = 3;
+static NUM_ROCKS: u32 = 4;
 
 // Clean up player... I don't think Board needs it
 fn main() {
