@@ -1,6 +1,5 @@
 extern crate core;
 extern crate pushfour;
-extern crate minimax;
 extern crate regex;
 
 use std::error::Error;
@@ -15,7 +14,7 @@ use core::num;
 use pushfour::util::*;
 use pushfour::board::Board;
 use pushfour::PushfourGame;
-use minimax::{Minimax, Game};
+use pushfour::minimax::{Minimax, Game};
 
 #[derive(Debug)]
 pub enum CliError {
@@ -82,7 +81,7 @@ fn run_scenario(path: &str) {
 }
 
 fn main() {
-    let mut args = env::args();
+    let mut args = env::args().peekable();
     args.next();
-    for a in args { run_scenario(&a); }
+    for a in args { run_scenario(&a, ); }
 }

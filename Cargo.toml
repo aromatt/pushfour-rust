@@ -1,5 +1,4 @@
 [package]
-
 name = "pushfour-rust"
 version = "0.0.1"
 authors = [ "Andrew Matteson <amatteson3@gmail.com>" ]
@@ -11,7 +10,3 @@ name = "pushfour"
 regex = "0.1"
 lazy_static = "0.1.*"
 rand = "0.3"
-
-[dependencies.minimax]
-git = "http://github.com/aromatt/rust-minimax"
-version = "0.6.0"

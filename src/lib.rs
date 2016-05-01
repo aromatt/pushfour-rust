@@ -6,14 +6,14 @@
 #[macro_use]
 extern crate lazy_static;
 
-extern crate minimax;
 
 pub mod overlay;
 pub mod diag_lookup;
 pub mod board;
+pub mod minimax;
 pub mod util;
 
-use self::minimax::Game;
+use minimax::Game;
 use board::*;
 use util::*;
 

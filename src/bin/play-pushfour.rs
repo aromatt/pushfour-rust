@@ -1,10 +1,9 @@
 use std::io;
 
 extern crate pushfour;
-extern crate minimax;
 extern crate rand;
 
-use minimax::{Minimax, Game};
+use pushfour::minimax::{Minimax, Game};
 use pushfour::PushfourGame;
 use pushfour::board::*;
 use pushfour::util::*;
