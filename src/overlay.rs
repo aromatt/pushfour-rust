@@ -1,6 +1,6 @@
 use std::fmt;
 use util::*;
-use util::core::cmp::{max};
+use util::core;
 use diag_lookup;
 
 // Returns min(longest length contiguous segment of 1's with `row`, `limit`)
@@ -158,26 +158,26 @@ impl Overlay {
 
     pub fn score(&self) -> i32 {
         let mut score = 0;
-        for row in &self.main { score = max(score, score_row(*row)); }
-        for row in &self.invert { score = max(score, score_row(*row)); }
-        for row in &self.diag { score = max(score, score_row(*row)); }
-        for row in &self.diag_rot { score = max(score, score_row(*row)); }
+        for row in &self.main { score = core::cmp::max(score, score_row(*row)); }
+        for row in &self.invert { score = core::cmp::max(score, score_row(*row)); }
+        for row in &self.diag { score = core::cmp::max(score, score_row(*row)); }
+        for row in &self.diag_rot { score = core::cmp::max(score, score_row(*row)); }
         score | ((score & 4) << 1) // boost score if score == 4
     }
 
     pub fn score_with_mask(&self, mask: &Overlay) -> i32 {
         let mut score = 0;
         for (i, row) in self.main.iter().enumerate() {
-            score = max(score, score_row_mask(*row, mask.main[i], self.size));
+            score = core::cmp::max(score, score_row_mask(*row, mask.main[i], self.size));
         }
         for (i, row) in self.invert.iter().enumerate() {
-            score = max(score, score_row_mask(*row, mask.invert[i], self.size));
+            score = core::cmp::max(score, score_row_mask(*row, mask.invert[i], self.size));
         }
         for (i, row) in self.diag.iter().enumerate() {
-            score = max(score, score_row_mask(*row, mask.diag[i], self.size));
+            score = core::cmp::max(score, score_row_mask(*row, mask.diag[i], self.size));
         }
         for (i, row) in self.diag_rot.iter().enumerate() {
-            score = max(score, score_row_mask(*row, mask.diag_rot[i], self.size));
+            score = core::cmp::max(score, score_row_mask(*row, mask.diag_rot[i], self.size));
         }
         score | ((score & 4) << 1) // boost score if score == 4
     }
